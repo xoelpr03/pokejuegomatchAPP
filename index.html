@@ -261,14 +261,32 @@
 
     <div id="how-to-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3 style="color: var(--accent); margin-top: 0;">How to Play</h3>
-            <ul style="font-size: 14px; line-height: 1.6; text-align: left; padding-left: 20px;">
-                <li><strong>Swipe</strong> to match 3 or more Pokémon.</li>
-                <li><strong>Normal Match:</strong> 100 points per tile.</li>
-                <li><strong>Shiny Match:</strong> 2,000 points per tile!</li>
-                <li><strong>Shiny Hunt:</strong> 1/100 chance per spawn.</li>
-            </ul>
-            <button class="menu-btn mode-play" onclick="closeModals()">GOT IT!</button>
+    <h2 style="margin-top: 0; color: var(--text-main); font-weight: 900;">START THE HUNT</h2>
+    
+    <div style="display: flex; flex-direction: column; gap: 20px; text-align: left; margin: 25px 0;">
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 24px;">🔄</div>
+            <div>
+                <b style="display: block; color: var(--accent);">SWIPE TO MATCH</b>
+                <span style="font-size: 13px; color: #64748b;">Swap Pokémon to line up 3 (or more) of a kind.</span>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 24px;">✨</div>
+            <div>
+                <b style="display: block; color: var(--shiny-gold);">WATCH FOR SHINIES</b>
+                <span style="font-size: 13px; color: #64748b;">Every spawn has a 1/100 chance to be a Shiny.</span>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="font-size: 24px;">📕</div>
+            <div>
+                <b style="display: block; color: var(--success);">FILL YOUR DEX</b>
+                <span style="font-size: 13px; color: #64748b;">Matching a Shiny adds it to your collection!</span>
+            </div>
         </div>
     </div>
 
@@ -901,3 +919,4 @@ window.addEventListener('resize', () => {
 </script>
 </body>
 </html>
+
