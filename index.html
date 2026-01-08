@@ -1,0 +1,759 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shiny Match</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --text-main: #1e293b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --shiny-gold: #fbbf24;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+            color: #f8fafc;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- MENU STYLES --- */
+        .menu-card {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 350px;
+            padding: 30px 20px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+            text-align: center;
+            color: var(--text-main);
+            z-index: 100;
+        }
+
+        .menu-title {
+            font-size: 28px; font-weight: 900; margin: 10px 0 5px 0; text-transform: uppercase;
+            background: linear-gradient(135deg, #ef4444 0%, #3b82f6 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .btn-group { display: flex; flex-direction: column; gap: 12px; }
+
+        .menu-btn {
+            width: 100%; height: 50px; border-radius: 12px; font-size: 14px; font-weight: 800;
+            cursor: pointer; border: none; text-transform: uppercase; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mode-play { background: #3b82f6; color: white; font-size: 18px; }
+        .mode-how { background: #f1f5f9; color: #475569; border: 2px solid #e2e8f0; }
+        .mode-dex { background: #fbbf24; color: #78350f; }
+        .exit-link-btn { background: #64748b; color: white; }
+
+        .mute-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white; border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 18px; transition: 0.3s;
+        }
+        .mute-btn.active { background: var(--danger); border-color: transparent; }
+
+        /* --- MODAL STYLES --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            color: var(--text-main);
+            width: 85%;
+            max-width: 320px;
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        /* --- SHINY DEX GRID ACTUALIZADO --- */
+        #dex-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            max-height: 350px;
+            overflow-y: auto;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 12px;
+        }
+
+        .dex-slot {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .dex-img { width: 100%; height: 100%; image-rendering: pixelated; }
+
+        .dex-slot.not-caught .dex-img {
+            filter: brightness(0);
+            opacity: 0.2;
+        }
+
+        .dex-num {
+            position: absolute;
+            top: 2px;
+            left: 3px;
+            font-size: 8px;
+            font-weight: 900;
+            color: #cbd5e1;
+        }
+
+        /* --- GAME SCREEN --- */
+        #game-screen { 
+            display: none; 
+            flex-direction: column;
+            align-items: center;
+            width: 100%; 
+            max-width: 500px; 
+            padding: 10px; 
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        #game-over-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 24px;
+            animation: fadeIn 0.3s ease;
+            text-align: center;
+            padding: 20px;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        #header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #score-box { text-align: left; }
+        #score-label { font-size: 10px; color: #94a3b8; font-weight: 800; }
+        #score { font-size: 32px; font-weight: 900; color: #fbbf24; line-height: 1; }
+
+        canvas {
+            background: #1e293b; 
+            border: 4px solid #475569;
+            border-radius: 18px; 
+            image-rendering: pixelated;
+            touch-action: none; 
+            cursor: crosshair;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        #shiny-tracker {
+            margin-top: 15px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 60px;
+        }
+        #shiny-label { font-size: 10px; color: #94a3b8; font-weight: 800; text-align: left; margin-bottom: 5px;}
+        #shiny-list, #final-shiny-list { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+
+        .shiny-icon { 
+            width: 40px; 
+            height: 40px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 8px; 
+            image-rendering: pixelated; 
+        }
+
+        #status { font-size: 12px; color: #fbbf24; margin-top: 10px; font-weight: 800; height: 15px; text-transform: uppercase; }
+        
+        #loading-msg { 
+            position: fixed; inset: 0; background: #0f172a; 
+            display: none; align-items: center; justify-content: center; 
+            z-index: 2000; font-weight: 900; letter-spacing: 2px;
+        }
+
+        .creator-credit {
+            margin-top: 25px; font-size: 9px; font-weight: 800; text-transform: lowercase;
+            letter-spacing: 2px; color: #94a3b8; opacity: 0.6; text-align: center;
+            border-top: 1px solid #e2e8f0; padding-top: 12px; width: 180px; margin: 25px auto 0;
+        }
+
+        .shiny-alert { animation: rainbow 1.5s infinite; }
+        @keyframes rainbow {
+            0% { color: #f87171; } 25% { color: #facc15; } 50% { color: #34d399; } 75% { color: #60a5fa; } 100% { color: #f87171; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-msg">FETCHING POKÉMON...</div>
+
+    <div id="how-to-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: var(--accent); margin-top: 0;">How to Play</h3>
+            <ul style="font-size: 14px; line-height: 1.6; text-align: left; padding-left: 20px;">
+                <li><strong>Swipe</strong> to match 3 or more Pokémon.</li>
+                <li><strong>Normal Match:</strong> 100 points per tile.</li>
+                <li><strong>Shiny Match:</strong> 2,000 points per tile!</li>
+                <li><strong>Shiny Hunt:</strong> 1/100 chance per spawn.</li>
+            </ul>
+            <button class="menu-btn mode-play" onclick="closeModals()">GOT IT!</button>
+        </div>
+    </div>
+
+    <div id="dex-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: var(--shiny-gold); margin-top: 0;">✨ SHINY POKÉDEX ✨</h3>
+            <p id="dex-count" style="font-size: 12px; font-weight: 800; color: #64748b;"></p>
+            <div id="dex-grid"></div>
+            <button class="menu-btn exit-link-btn" onclick="closeModals()">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="main-menu" class="menu-card">
+        <div style="font-size: 50px; margin-bottom: 10px;">✨</div>
+        <h1 class="menu-title">Shiny Match</h1>
+        <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
+        <div class="btn-group">
+            <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
+            <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
+            <button class="menu-btn mode-how" onclick="openHow()">How to Play</button>
+        </div>
+        <div class="creator-credit">created by ξawsjαke</div>
+    </div>
+
+    <div id="game-screen">
+        <div id="game-over-overlay">
+            <h2 style="color: var(--danger); font-size: 40px; margin-bottom: 5px; font-weight: 900;">GAME OVER</h2>
+            <p style="font-size: 20px; font-weight: 800; margin-bottom: 10px;">SCORE: <span id="final-streak">0</span></p>
+            
+            <div id="game-over-shinies" style="margin-bottom: 20px;">
+                <div style="font-size: 10px; color: #94a3b8; font-weight: 800; margin-bottom: 10px;">SHINIES COLLECTED</div>
+                <div id="final-shiny-list"></div>
+            </div>
+
+            <div class="btn-group" style="width: 220px;">
+                <button class="menu-btn mode-play" onclick="startGame()">Try Again</button>
+                <button class="menu-btn exit-link-btn" onclick="resetToMenu()">Main Menu</button>
+            </div>
+        </div>
+
+        <div id="header">
+            <div id="score-box">
+                <div id="score-label">SCORE</div>
+                <div id="score">0</div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
+                <button class="menu-btn exit-link-btn" style="width: 80px; height: 35px; font-size: 11px;" onclick="resetToMenu()">QUIT</button>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+        <div id="status">SWIPE TO MATCH</div>
+
+        <div id="shiny-tracker">
+            <div id="shiny-label">SHINIES CAPTURED</div>
+            <div id="shiny-list"></div>
+        </div>
+    </div>
+
+<script>
+// El resto del JavaScript se mantiene exactamente igual para asegurar el funcionamiento del juego.
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const statusEl = document.getElementById('status');
+const loadingEl = document.getElementById('loading-msg');
+const mainMenu = document.getElementById('main-menu');
+const gameScreen = document.getElementById('game-screen');
+const gameOverOverlay = document.getElementById('game-over-overlay');
+const finalScoreEl = document.getElementById('final-streak');
+const shinyListEl = document.getElementById('shiny-list');
+const finalShinyListEl = document.getElementById('final-shiny-list');
+const muteBtn = document.getElementById('muteBtn');
+
+const howModal = document.getElementById('how-to-modal');
+const dexModal = document.getElementById('dex-modal');
+const dexGrid = document.getElementById('dex-grid');
+const dexCount = document.getElementById('dex-count');
+
+const SHINY_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
+SHINY_SOUND.volume = 1;
+
+let isMuted = false;
+const GRID_SIZE = 7; 
+const SHINY_CHANCE = 100;
+let TILE_SIZE = 0;
+let board = [];
+let score = 0;
+let isAnimating = false;
+let gameOver = false;
+let lastMoveTime = Date.now();
+let gameInitialized = false;
+let startX, startY;
+let sparkles = [];
+let pokemonData = [];
+let pokemonColors = [];
+const colors = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#7f7985", "#ec4899", "#f97316"];
+
+let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
+
+function saveToDex(pokeId, spriteUrl) {
+    if (!caughtShinies[pokeId]) {
+        caughtShinies[pokeId] = spriteUrl;
+        localStorage.setItem('shinyDex', JSON.stringify(caughtShinies));
+    }
+}
+
+function openHow() { howModal.style.display = 'flex'; }
+
+function openDex() {
+    dexGrid.innerHTML = "";
+    const caughtIds = Object.keys(caughtShinies);
+    dexCount.innerText = `COLLECTED: ${caughtIds.length}`;
+    const maxPokemon = 1025; 
+
+    for (let i = 1; i <= maxPokemon; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'dex-slot';
+        const numLabel = document.createElement('span');
+        numLabel.className = 'dex-num';
+        numLabel.innerText = i;
+        slot.appendChild(numLabel);
+        const img = document.createElement('img');
+        img.className = 'dex-img';
+        if (caughtShinies[i]) {
+            img.src = caughtShinies[i];
+        } else {
+            img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${i}.png`;
+            slot.classList.add('not-caught');
+        }
+        slot.appendChild(img);
+        dexGrid.appendChild(slot);
+    }
+    dexModal.style.display = 'flex';
+}
+
+function closeModals() {
+    howModal.style.display = 'none';
+    dexModal.style.display = 'none';
+}
+
+function toggleMute() {
+    isMuted = !isMuted;
+    muteBtn.classList.toggle('active', isMuted);
+    muteBtn.innerText = isMuted ? '🔇' : '🔊';
+}
+
+let sparkleTimeout;
+function playSparkle() {
+    if (isMuted) return;
+    clearTimeout(sparkleTimeout);
+    sparkleTimeout = setTimeout(() => {
+        SHINY_SOUND.currentTime = 0;
+        SHINY_SOUND.play().catch(() => {});
+    }, 50);
+}
+
+async function startGame() {
+    mainMenu.style.display = 'none';
+    gameOverOverlay.style.display = 'none';
+    gameScreen.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    pokemonData = []; 
+    pokemonColors = [];
+    sparkles = [];
+    score = 0;
+    scoreEl.innerText = "0";
+    gameOver = false;
+    shinyListEl.innerHTML = "";
+    finalShinyListEl.innerHTML = "";
+    
+    await fetchGameData();
+    initBoard();
+    loadingEl.style.display = 'none';
+    
+    if(!gameInitialized) {
+        gameInitialized = true;
+        requestAnimationFrame(renderLoop);
+        setInterval(checkIdleTime, 1000);
+    }
+}
+
+function resetToMenu() {
+    gameScreen.style.display = 'none';
+    mainMenu.style.display = 'block';
+}
+
+async function fetchGameData() {
+    try {
+        const selectedIds = new Set();
+        while(selectedIds.size < 7) selectedIds.add(Math.floor(Math.random() * 1025) + 1);
+        const idArray = Array.from(selectedIds);
+        for(let i=0; i < 7; i++) {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${idArray[i]}`);
+            const data = await res.json();
+            const normal = new Image();
+            const shiny = new Image();
+            normal.crossOrigin = shiny.crossOrigin = "anonymous";
+            normal.src = data.sprites.front_default;
+            shiny.src = data.sprites.front_shiny;
+            await Promise.all([
+                new Promise(r => normal.onload = r),
+                new Promise(r => shiny.onload = r)
+            ]);
+            pokemonData.push({ images: { normal, shiny }, cry: data.cries.latest, id: idArray[i] });
+            pokemonColors.push(colors[i]);
+        }
+    } catch(e){ console.error(e); }
+}
+
+function initBoard() {
+    resize();
+    ensurePlayableBoard();
+    lastMoveTime = Date.now();
+    if (isShinyOnBoard()) playSparkle();
+}
+
+function resize() {
+    const size = Math.min(window.innerWidth * 0.95, 420);
+    canvas.width = size; canvas.height = size;
+    TILE_SIZE = size / GRID_SIZE;
+}
+
+function createTile(id, allowSound = false) {
+    const isShiny = Math.floor(Math.random() * SHINY_CHANCE) === 0;
+    if (isShiny && allowSound) playSparkle();
+    return { id, isShiny, xOffset: 0, yOffset: 0, isMatch: false, scale: 1, rotation: 0 };
+}
+
+function createSparkle(x, y) {
+    return {
+        x: x + (Math.random() * TILE_SIZE),
+        y: y + (Math.random() * TILE_SIZE),
+        size: Math.random() * 4 + 2,
+        life: 1.0,
+        decay: Math.random() * 0.03 + 0.02,
+        color: Math.random() > 0.5 ? '#fff' : '#fbbf24'
+    };
+}
+
+function isShinyOnBoard() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            if (board[r][c] && board[r][c].isShiny && !board[r][c].isMatch) return true;
+        }
+    }
+    return false;
+}
+
+function ensurePlayableBoard() {
+    let possible = false;
+    while (!possible) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            board[r] = [];
+            for (let c = 0; c < GRID_SIZE; c++) {
+                board[r][c] = createTile(Math.floor(Math.random() * 7), false);
+            }
+        }
+        if (findMatches().length === 0 && hasAnyMove()) possible = true;
+    }
+}
+
+function checkIdleTime() {
+    if (gameScreen.style.display === 'flex' && !isAnimating && !gameOver && Date.now() - lastMoveTime > 10000) {
+        highlightPotentialMove();
+    }
+}
+
+function highlightPotentialMove() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            if ((c < GRID_SIZE - 1 && checkPotential(r, c, r, c + 1)) || 
+                (r < GRID_SIZE - 1 && checkPotential(r, c, r + 1, c))) {
+                animateHint(r, c);
+                return;
+            }
+        }
+    }
+}
+
+function animateHint(r, c) {
+    const start = performance.now();
+    const duration = 500;
+    function step(now) {
+        const progress = (now - start) / duration;
+        if (progress < 1 && board[r] && board[r][c]) {
+            board[r][c].rotation = progress * Math.PI * 2;
+            requestAnimationFrame(step);
+        } else if (board[r] && board[r][c]) { board[r][c].rotation = 0; }
+    }
+    requestAnimationFrame(step);
+}
+
+function hasAnyMove() {
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            if (c < GRID_SIZE - 1 && checkPotential(r, c, r, c + 1)) return true;
+            if (r < GRID_SIZE - 1 && checkPotential(r, c, r + 1, c)) return true;
+        }
+    }
+    return false;
+}
+
+function checkPotential(r1, c1, r2, c2) {
+    const t1 = board[r1][c1].id;
+    board[r1][c1].id = board[r2][c2].id;
+    board[r2][c2].id = t1;
+    const matches = findMatches();
+    board[r2][c2].id = board[r1][c1].id;
+    board[r1][c1].id = t1;
+    return matches.length > 0;
+}
+
+function renderLoop() {
+    if (gameScreen.style.display === 'none') {
+        requestAnimationFrame(renderLoop);
+        return;
+    }
+    if (isShinyOnBoard()) {
+        statusEl.innerText = "✨ SHINY SPAWNED! ✨";
+        statusEl.classList.add('shiny-alert');
+    } else {
+        statusEl.innerText = "SWIPE TO MATCH";
+        statusEl.classList.remove('shiny-alert');
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 1;
+    for(let i=0; i<=GRID_SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(i*TILE_SIZE, 0); ctx.lineTo(i*TILE_SIZE, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i*TILE_SIZE); ctx.lineTo(canvas.width, i*TILE_SIZE); ctx.stroke();
+    }
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            const tile = board[r][c];
+            if (tile.isMatch && tile.scale <= 0) continue;
+            const drawX = c * TILE_SIZE + tile.xOffset;
+            const drawY = r * TILE_SIZE + tile.yOffset;
+            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = pokemonColors[tile.id];
+            ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            if(tile.isShiny) {
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+                ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                if (Math.random() > 0.85) sparkles.push(createSparkle(drawX, drawY));
+            }
+            const pData = pokemonData[tile.id];
+            if (pData) {
+                const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
+                const displaySize = TILE_SIZE * tile.scale * 0.95;
+                ctx.save();
+                ctx.translate(drawX + TILE_SIZE/2, drawY + TILE_SIZE/2);
+                ctx.rotate(tile.rotation);
+                ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
+                ctx.restore();
+            }
+        }
+    }
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+        const s = sparkles[i];
+        ctx.globalAlpha = s.life; ctx.fillStyle = s.color; ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2); ctx.fill();
+        s.life -= s.decay; if (s.life <= 0) sparkles.splice(i, 1);
+    }
+    ctx.globalAlpha = 1.0;
+    requestAnimationFrame(renderLoop);
+}
+
+canvas.addEventListener('pointerdown', e => { 
+    if (isAnimating || gameOver) return; 
+    startX = e.clientX; startY = e.clientY; 
+    lastMoveTime = Date.now();
+});
+
+canvas.addEventListener('pointerup', e => {
+    if (isAnimating || gameOver || !startX) return;
+    const dx = e.clientX - startX; const dy = e.clientY - startY;
+    const rect = canvas.getBoundingClientRect();
+    const r = Math.floor((startY - rect.top) / TILE_SIZE);
+    const c = Math.floor((startX - rect.left) / TILE_SIZE);
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
+    let dir = null;
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) dir = dx > 0 ? 'right' : 'left';
+    else if(Math.abs(dy) > 25) dir = dy > 0 ? 'down' : 'up';
+    if(dir) moveTile(r, c, dir);
+    startX = null;
+});
+
+async function moveTile(r, c, dir) {
+    let tr = r, tc = c;
+    if (dir === 'up') tr--; else if (dir === 'down') tr++; else if (dir === 'left') tc--; else if (dir === 'right') tc++;
+    if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE) {
+        isAnimating = true;
+        await animateSlide(r, c, tr, tc);
+        const temp = { id: board[r][c].id, isShiny: board[r][c].isShiny };
+        board[r][c].id = board[tr][tc].id; board[r][c].isShiny = board[tr][tc].isShiny;
+        board[tr][tc].id = temp.id; board[tr][tc].isShiny = temp.isShiny;
+        if (findMatches().length > 0) { await processMatches(); if (!hasAnyMove()) endGame(); } 
+        else {
+            await animateSlide(r, c, tr, tc);
+            const swapBack = { id: board[tr][tc].id, isShiny: board[tr][tc].isShiny };
+            board[tr][tc].id = board[r][c].id; board[tr][tc].isShiny = board[r][c].isShiny;
+            board[r][c].id = swapBack.id; board[r][c].isShiny = swapBack.isShiny;
+        }
+        isAnimating = false;
+    }
+}
+
+function endGame() {
+    gameOver = true; finalScoreEl.innerText = score;
+    gameOverOverlay.style.display = 'flex';
+}
+
+function findMatches() {
+    let matches = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE - 2; c++) {
+            if (board[r][c].id === board[r][c+1].id && board[r][c].id === board[r][c+2].id) 
+                matches.push({r, c}, {r, c:c+1}, {r, c:c+2});
+        }
+    }
+    for (let c = 0; c < GRID_SIZE; c++) {
+        for (let r = 0; r < GRID_SIZE - 2; r++) {
+            if (board[r][c].id === board[r+1][c].id && board[r][c].id === board[r+2][c].id)
+                matches.push({r, c}, {r:r+1, c}, {r:r+2, c});
+        }
+    }
+    return matches;
+}
+
+async function processMatches() {
+    let matches = findMatches();
+    let playedCries = new Set();
+    while(matches.length > 0){
+        let turnScore = 0;
+        matches.forEach(m => {
+            const tile = board[m.r][m.c];
+            if (!playedCries.has(tile.id) && !isMuted) {
+                new Audio(pokemonData[tile.id].cry).play().catch(()=>{});
+                playedCries.add(tile.id);
+            }
+            if(tile.isShiny && !tile.isMatch) captureShiny(tile.id);
+            turnScore += tile.isShiny ? 2000 : 100; tile.isMatch = true;
+        });
+        score += turnScore; scoreEl.innerText = score;
+        await animateShrink(matches);
+        for (let c = 0; c < GRID_SIZE; c++) {
+            let empty = 0;
+            for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                if (board[r][c].isMatch) empty++;
+                else if (empty > 0) {
+                    board[r + empty][c] = { ...board[r][c], yOffset: -empty * TILE_SIZE, isMatch: false, scale: 1 };
+                    board[r][c].isMatch = true;
+                }
+            }
+            for (let r = 0; r < empty; r++) {
+                board[r][c] = createTile(Math.floor(Math.random() * 7), true);
+                board[r][c].yOffset = -empty * TILE_SIZE;
+            }
+        }
+        await animateFalling();
+        matches = findMatches();
+    }
+}
+
+function captureShiny(tileId) {
+    const pInfo = pokemonData[tileId];
+    saveToDex(pInfo.id, pInfo.images.shiny.src);
+    const img = document.createElement('img');
+    img.src = pInfo.images.shiny.src; img.className = 'shiny-icon';
+    shinyListEl.appendChild(img);
+    const imgGameOver = img.cloneNode(); finalShinyListEl.appendChild(imgGameOver);
+    statusEl.innerText = "SHINY CAPTURED!";
+}
+
+function animateSlide(r1, c1, r2, c2){
+    const duration = 200; const start = performance.now();
+    return new Promise(resolve => {
+        function step(now){
+            const progress = Math.min((now-start)/duration, 1);
+            board[r1][c1].xOffset = (c2-c1)*TILE_SIZE*progress;
+            board[r1][c1].yOffset = (r2-r1)*TILE_SIZE*progress;
+            board[r2][c2].xOffset = (c1-c2)*TILE_SIZE*progress;
+            board[r2][c2].yOffset = (r1-r2)*TILE_SIZE*progress;
+            if(progress < 1) requestAnimationFrame(step);
+            else { board[r1][c1].xOffset=board[r1][c1].yOffset=board[r2][c2].xOffset=board[r2][c2].yOffset=0; resolve(); }
+        }
+        requestAnimationFrame(step);
+    });
+}
+
+function animateShrink(matches){
+    const duration = 200; const start = performance.now();
+    return new Promise(resolve => {
+        function step(now){
+            const progress = Math.min((now-start)/duration, 1);
+            matches.forEach(m => { if(board[m.r][m.c]) board[m.r][m.c].scale = 1 - progress; });
+            if(progress < 1) requestAnimationFrame(step); else resolve();
+        }
+        requestAnimationFrame(step);
+    });
+}
+
+function animateFalling(){
+    return new Promise(resolve => {
+        function step(){
+            let finished = true;
+            for(let r=0; r<GRID_SIZE; r++){
+                for(let c=0; c<GRID_SIZE; c++){
+                    if(board[r][c].yOffset < 0){
+                        board[r][c].yOffset += TILE_SIZE/10;
+                        if(board[r][c].yOffset > 0) board[r][c].yOffset = 0;
+                        finished = false;
+                    }
+                }
+            }
+            if(finished) resolve(); else requestAnimationFrame(step);
+        }
+        step();
+    });
+}
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
