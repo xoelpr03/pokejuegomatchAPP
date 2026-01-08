@@ -142,8 +142,9 @@
             display: none; 
             flex-direction: column;
             align-items: center;
-            width: 100%; 
+            width: 95vw; 
             max-width: 500px; 
+            max-height: 98vh;
             padding: 10px; 
             box-sizing: border-box;
             position: relative;
@@ -167,10 +168,10 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        #header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         #score-box { text-align: left; }
         #score-label { font-size: 10px; color: #94a3b8; font-weight: 800; }
-        #score { font-size: 32px; font-weight: 900; color: #fbbf24; line-height: 1; }
+        #score { font-size: 28px; font-weight: 900; color: #fbbf24; line-height: 1; }
 
         canvas {
             background: #1e293b; 
@@ -180,28 +181,31 @@
             touch-action: none; 
             cursor: crosshair;
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            max-width: 100%;
+            height: auto;
         }
 
         #shiny-tracker {
-            margin-top: 15px;
+            margin-top: 10px;
             width: 100%;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            padding: 10px;
-            min-height: 60px;
+            padding: 8px;
+            min-height: 50px;
+            overflow-y: auto;
         }
         #shiny-label { font-size: 10px; color: #94a3b8; font-weight: 800; text-align: left; margin-bottom: 5px;}
         #shiny-list, #final-shiny-list { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
 
         .shiny-icon { 
-            width: 40px; 
-            height: 40px; 
+            width: 35px; 
+            height: 35px; 
             background: rgba(255,255,255,0.1); 
             border-radius: 8px; 
             image-rendering: pixelated; 
         }
 
-        #status { font-size: 12px; color: #fbbf24; margin-top: 10px; font-weight: 800; height: 15px; text-transform: uppercase; }
+        #status { font-size: 12px; color: #fbbf24; margin-top: 5px; font-weight: 800; height: 15px; text-transform: uppercase; }
         
         #loading-msg { 
             position: fixed; inset: 0; background: #0f172a; 
@@ -219,6 +223,36 @@
         @keyframes rainbow {
             0% { color: #f87171; } 25% { color: #facc15; } 50% { color: #34d399; } 75% { color: #60a5fa; } 100% { color: #f87171; }
         }
+
+        #who-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+    max-height: 45vh;
+    overflow-y: auto;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+.who-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: white;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.who-name {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-top: 4px;
+}
     </style>
 </head>
 <body>
@@ -255,6 +289,7 @@
             <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
             <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
             <button class="menu-btn mode-how" onclick="openHow()">How to Play</button>
+            
         </div>
         <div class="creator-credit">created by ξawsjαke</div>
     </div>
@@ -281,8 +316,17 @@
                 <div id="score">0</div>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
+                <div id="who-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="color: var(--accent); margin-top: 0;">Who's That Pokémon?</h3>
+        <div id="who-grid"></div>
+        <button class="menu-btn mode-play" onclick="closeModals()">BACK TO HUNT</button>
+    </div>
+</div>
+<button class="menu-btn mode-dex" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px;" onclick="openWho()">❓</button>
                 <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
                 <button class="menu-btn exit-link-btn" style="width: 80px; height: 35px; font-size: 11px;" onclick="resetToMenu()">QUIT</button>
+        
             </div>
         </div>
 
@@ -296,7 +340,6 @@
     </div>
 
 <script>
-/* (All updated logic from previous response remains here) */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
@@ -335,7 +378,6 @@ let pokemonColors = [];
 const colors = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#7f7985", "#ec4899", "#f97316"];
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
-
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
 
 function saveToDex(pokeId, spriteUrl) {
@@ -351,81 +393,50 @@ function openDex() {
     dexGrid.innerHTML = "";
     const caughtIds = Object.keys(caughtShinies);
     dexCount.innerText = `COLLECTED: ${caughtIds.length}`;
-    
     const maxPokemon = 1025; 
 
     for (let i = 1; i <= maxPokemon; i++) {
-        const slot = document.createElement('div');
-        slot.className = 'dex-slot';
-        
-        const numLabel = document.createElement('span');
-        numLabel.className = 'dex-num';
-        numLabel.innerText = i;
-        slot.appendChild(numLabel);
-
-        let spriteId = i;
-        if (i === 774) spriteId = "10101"; 
-        if (i === 888) spriteId = "10188"; 
-        if (i === 889) spriteId = "10189"; 
-        if (i === 1024) spriteId = "10276"; 
-        if (i === 964) spriteId = "10256"; 
-
-        const img = document.createElement('img');
-        img.className = 'dex-img';
-        
-        if (caughtShinies[i]) {
-            img.src = caughtShinies[i];
-        } else {
-            img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`;
-            slot.classList.add('not-caught');
-        }
-        
-        slot.appendChild(img);
+        const slot = createDexSlot(i);
         dexGrid.appendChild(slot);
     }
-    if (REGIONAL_IDS.length > 0) {
-        
-        for (const id of REGIONAL_IDS) {
-            const slot = createDexSlot(id);
-            dexGrid.appendChild(slot);
-        }
+    for (const id of REGIONAL_IDS) {
+        const slot = createDexSlot(id);
+        dexGrid.appendChild(slot);
     }
     dexModal.style.display = 'flex';
 }
+
 function createDexSlot(pokeId) {
     const slot = document.createElement('div');
     slot.className = 'dex-slot';
-
     const numLabel = document.createElement('span');
     numLabel.className = 'dex-num';
     numLabel.innerText = pokeId;
     slot.appendChild(numLabel);
-
     const img = document.createElement('img');
     img.className = 'dex-img';
+
+    let spriteId = pokeId;
+    if (spriteId === 774) spriteId = "10101";
+    if (spriteId === 888) spriteId = "10188";
+    if (spriteId === 889) spriteId = "10189";
+    if (spriteId === 1024) spriteId = "10276";
+    if (spriteId === 964) spriteId = "10256";
 
     if (caughtShinies[pokeId]) {
         img.src = caughtShinies[pokeId];
     } else {
-        let spriteId = pokeId;
-
-        // Map special forms if needed
-        if (spriteId === 774) spriteId = "10101";      // Minior
-        if (spriteId === 888) spriteId = "10188";      // Zacian
-        if (spriteId === 889) spriteId = "10189";      // Zamazenta
-        if (spriteId === 1024) spriteId = "10276";     // Terapagos
-        if (spriteId === 964) spriteId = "10256";      // Palafin
-
         img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`;
         slot.classList.add('not-caught');
     }
-
     slot.appendChild(img);
     return slot;
 }
+
 function closeModals() {
     howModal.style.display = 'none';
     dexModal.style.display = 'none';
+    document.getElementById('who-modal').style.display = 'none';
 }
 
 function toggleMute() {
@@ -477,63 +488,39 @@ function resetToMenu() {
 async function fetchGameData() {
     try {
         const selectedIds = new Set();
-        const ALL_IDS = [
-            // 1-1025 normal Pokémon IDs
-            ...Array.from({length: 1025}, (_, i) => i + 1),
-            // Include regional Pokémon IDs as regular ones
-            ...REGIONAL_IDS
-        ];
-
-        // Pick 7 unique Pokémon for this game
+        const ALL_IDS = [...Array.from({length: 1025}, (_, i) => i + 1), ...REGIONAL_IDS];
         while (selectedIds.size < 7) {
-            let idx = Math.floor(Math.random() * ALL_IDS.length);
-            let id = ALL_IDS[idx];
-
-            // Map special forms if needed
-            if (id === 774) id = "minior-red-core";
-            if (id === 888) id = "zacian-crowned";
-            if (id === 889) id = "zamazenta-crowned";
-            if (id === 1024) id = "terapagos-terastal";
-            if (id === 964) id = "palafin-hero";
-
+            let id = ALL_IDS[Math.floor(Math.random() * ALL_IDS.length)];
             selectedIds.add(id);
         }
-
         const idArray = Array.from(selectedIds);
-
         for(let i=0; i < 7; i++) {
-            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${idArray[i]}`);
-            const data = await res.json();
+            let fetchId = idArray[i];
+            if (fetchId === 774) fetchId = "minior-red-core";
+            if (fetchId === 888) fetchId = "zacian-crowned";
+            if (fetchId === 889) fetchId = "zamazenta-crowned";
+            if (fetchId === 1024) fetchId = "terapagos-terastal";
+            if (fetchId === 964) fetchId = "palafin-hero";
 
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${fetchId}`);
+            const data = await res.json();
             const normal = new Image();
             const shiny = new Image();
+            const pName = data.name.split('-')[0]; // Gets base name
+const capitalized = pName.charAt(0).toUpperCase() + pName.slice(1);
             normal.crossOrigin = shiny.crossOrigin = "anonymous";
-
-            let normalUrl = data.sprites.front_default || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_default);
-            let shinyUrl = data.sprites.front_shiny || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_shiny);
-
-            normal.src = normalUrl;
-            shiny.src = shinyUrl;
-
-            await Promise.all([
-                new Promise(r => normal.onload = r),
-                new Promise(r => shiny.onload = r)
-            ]);
-
-            pokemonData.push({
-                images: { normal, shiny },
-                cry: data.cries ? data.cries.latest : null,
-                id: data.id
-            });
-
-            pokemonColors.push(colors[i]);
+            normal.src = data.sprites.front_default || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_default);
+            shiny.src = data.sprites.front_shiny || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_shiny);
+            await Promise.all([new Promise(r => normal.onload = r), new Promise(r => shiny.onload = r)]);
+pokemonData.push({ 
+    name: capitalized, // Store the name
+    images: { normal, shiny }, 
+    cry: data.cries ? data.cries.latest : null, 
+    id: data.id 
+});            pokemonColors.push(colors[i]);
         }
-
-    } catch(e) {
-        console.error("Error fetching data:", e);
-    }
+    } catch(e) { console.error(e); }
 }
-
 
 function initBoard() {
     resize();
@@ -542,16 +529,19 @@ function initBoard() {
     if (isShinyOnBoard()) playSparkle();
 }
 
+/**
+ * Función de redimensionado actualizada:
+ * Calcula el tamaño óptimo basado en el ancho y alto disponible
+ * para evitar que el canvas se salga de la pantalla.
+ */
 function resize() {
-    let size;
-
-    if (window.innerWidth >= 1200) {
-        size = 800; // pantallas grandes
-    } else if (window.innerWidth >= 768) {
-        size = 500; // tablets / laptops
-    } else {
-        size = window.innerWidth * 0.95; // móviles
-    }
+    const headerHeight = 80;
+    const statusHeight = 80;
+    const availableWidth = window.innerWidth * 0.95;
+    const availableHeight = window.innerHeight - headerHeight - statusHeight;
+    
+    // El canvas debe ser cuadrado, usamos el menor de los dos espacios disponibles
+    const size = Math.min(availableWidth, availableHeight, 500); 
 
     canvas.width = size;
     canvas.height = size;
@@ -665,7 +655,6 @@ function renderLoop() {
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
     for(let i=0; i<=GRID_SIZE; i++) {
@@ -677,25 +666,20 @@ function renderLoop() {
         for (let c = 0; c < GRID_SIZE; c++) {
             const tile = board[r][c];
             if (tile.isMatch && tile.scale <= 0) continue;
-            
             const drawX = c * TILE_SIZE + tile.xOffset;
             const drawY = r * TILE_SIZE + tile.yOffset;
-            
             ctx.globalAlpha = 1.0;
             ctx.fillStyle = pokemonColors[tile.id];
             ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-            
             if(tile.isShiny) {
                 ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
                 ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
                 if (Math.random() > 0.85) sparkles.push(createSparkle(drawX, drawY));
             }
-            
             const pData = pokemonData[tile.id];
             if (pData) {
                 const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
                 const displaySize = TILE_SIZE * tile.scale * 0.95;
-                
                 ctx.save();
                 ctx.translate(drawX + TILE_SIZE/2, drawY + TILE_SIZE/2);
                 ctx.rotate(tile.rotation);
@@ -716,13 +700,11 @@ function renderLoop() {
         if (s.life <= 0) sparkles.splice(i, 1);
     }
     ctx.globalAlpha = 1.0;
-
     requestAnimationFrame(renderLoop);
 }
 
 canvas.addEventListener('pointerdown', e => { 
     if (isAnimating || gameOver) return; 
-    const rect = canvas.getBoundingClientRect();
     startX = e.clientX; startY = e.clientY; 
     lastMoveTime = Date.now();
 });
@@ -732,8 +714,8 @@ canvas.addEventListener('pointerup', e => {
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     const rect = canvas.getBoundingClientRect();
-    const r = Math.floor((startY - rect.top) / TILE_SIZE);
-    const c = Math.floor((startX - rect.left) / TILE_SIZE);
+    const r = Math.floor((startY - rect.top) / (rect.height / GRID_SIZE));
+    const c = Math.floor((startX - rect.left) / (rect.width / GRID_SIZE));
     if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
     let dir = null;
     if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) dir = dx > 0 ? 'right' : 'left';
@@ -803,9 +785,7 @@ async function processMatches() {
                 new Audio(pokemonData[tile.id].cry).play().catch(()=>{});
                 playedCries.add(tile.id);
             }
-            if(tile.isShiny && !tile.isMatch) {
-                captureShiny(tile.id);
-            }
+            if(tile.isShiny && !tile.isMatch) captureShiny(tile.id);
             turnScore += tile.isShiny ? 2000 : 100;
             tile.isMatch = true;
         });
@@ -834,15 +814,11 @@ async function processMatches() {
 function captureShiny(tileId) {
     const pInfo = pokemonData[tileId];
     saveToDex(pInfo.id, pInfo.images.shiny.src);
-
     const img = document.createElement('img');
     img.src = pInfo.images.shiny.src;
     img.className = 'shiny-icon';
     shinyListEl.appendChild(img);
-
-    const imgGameOver = img.cloneNode();
-    finalShinyListEl.appendChild(imgGameOver);
-
+    finalShinyListEl.appendChild(img.cloneNode());
     statusEl.innerText = "SHINY CAPTURED!";
 }
 
@@ -895,9 +871,33 @@ function animateFalling(){
         step();
     });
 }
+function openWho() {
+    const whoGrid = document.getElementById('who-grid');
+    whoGrid.innerHTML = ""; // Clear old list
+    
+    pokemonData.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'who-item';
+        
+        const img = document.createElement('img');
+        img.src = p.images.normal.src;
+        img.className = 'dex-img'; // Reusing your existing sprite styling
+        
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'who-name';
+        nameLabel.innerText = p.name;
+        
+        item.appendChild(img);
+        item.appendChild(nameLabel);
+        whoGrid.appendChild(item);
+    });
+    document.getElementById('who-modal').style.display = 'flex';
+}
 
-window.addEventListener('resize', resize);
+// Escuchar cambios de tamaño de ventana para ajustar el canvas
+window.addEventListener('resize', () => {
+    if (gameScreen.style.display === 'flex') resize();
+});
 </script>
 </body>
 </html>
-
