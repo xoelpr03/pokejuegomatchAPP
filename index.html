@@ -358,7 +358,7 @@ Continue
                 <button class="menu-btn exit-link-btn" style="width: 80px; height: 35px; font-size: 11px;" onclick="resetToMenu()">QUIT</button>
                 <button class="menu-btn mode-how"
 style="width:80px;height:35px;font-size:11px"
-onclick="pauseGame()">PAUSE</button>
+onclick="pauseToMenu()">MENU</button>
         
             </div>
         </div>
@@ -572,6 +572,13 @@ function resetToMenu() {
     gameScreen.style.display = 'none';
     mainMenu.style.display = 'block';
 }
+    function pauseToMenu() {
+    saveGame();
+    isPaused = false;
+    gameScreen.style.display = 'none';
+    mainMenu.style.display = 'block';
+    updateMenuButtons();
+    }
 
 async function fetchGameData() {
     try {
@@ -1039,3 +1046,4 @@ window.addEventListener('resize', () => {
 </script>
 </body>
 </html>
+
