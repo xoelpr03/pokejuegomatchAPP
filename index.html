@@ -292,19 +292,6 @@
 
     <div id="loading-msg">FETCHING POKÉMON...</div>
 
-    <div id="how-to-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="color: var(--accent); margin-top: 0;">How to Play</h3>
-            <ul style="font-size: 14px; line-height: 1.6; text-align: left; padding-left: 20px;">
-                <li><strong>Swipe</strong> to match 3 or more Pokémon.</li>
-                <li><strong>Normal Match:</strong> 100 points per tile.</li>
-                <li><strong>Shiny Match:</strong> 2,000 points per tile!</li>
-                <li><strong>Shiny Hunt:</strong> 1/100 chance per spawn.</li>
-            </ul>
-            <button class="menu-btn mode-play" onclick="closeModals()">GOT IT!</button>
-        </div>
-    </div>
-
     <div id="dex-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="color: var(--shiny-gold); margin-top: 0;">✨ SHINY POKÉDEX ✨</h3>
@@ -322,7 +309,6 @@
             <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
             <button id="continue-btn" class="menu-btn mode-play" style="background: #10b981; display: none;" onclick="continueGame()">Continue Hunting</button>
             <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
-            <button class="menu-btn mode-how" onclick="openHow()">How to Play</button>
         </div>
         <div class="creator-credit">created by ξawsjαke</div>
     </div>
@@ -387,7 +373,6 @@ const finalShinyListEl = document.getElementById('final-shiny-list');
 const muteBtn = document.getElementById('muteBtn');
 const whoModal = document.getElementById('who-modal');
 const whoGrid = document.getElementById('who-grid');
-const howModal = document.getElementById('how-to-modal');
 const dexModal = document.getElementById('dex-modal');
 const dexGrid = document.getElementById('dex-grid');
 const dexCount = document.getElementById('dex-count');
@@ -410,7 +395,7 @@ let sparkles = [];
 let pokemonData = [];
 let pokemonColors = [];
 const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#ec4899"];
-const REGIONAL_IDS = [10091, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
+const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
 
@@ -851,16 +836,42 @@ async function startGame() {
 
 function checkIdleTime() {} 
 function openDex() {
-    dexGrid.innerHTML = ""; dexCount.innerText = `COLLECTED: ${Object.keys(caughtShinies).length}`;
-    for (let i = 1; i <= 1025; i++) dexGrid.appendChild(createDexSlot(i));
+    dexGrid.innerHTML = "";
+    
+    // Contador de shinies
+    dexCount.innerText = `COLLECTED: ${Object.keys(caughtShinies).length}`;
+
+    // Recorremos todos los Pokémon base (1-1025)
+    for (let id = 1; id <= 1025; id++) {
+        dexGrid.appendChild(createDexSlot(id));
+    }
+
+    // Añadimos los regionales
+    REGIONAL_IDS.forEach(id => {
+        dexGrid.appendChild(createDexSlot(id));
+    });
+
     dexModal.style.display = 'flex';
 }
 function createDexSlot(id) {
-    const slot = document.createElement('div'); slot.className = 'dex-slot';
+    const slot = document.createElement('div');
+    slot.className = 'dex-slot';
+
     const img = document.createElement('img');
-    if (caughtShinies[id]) img.src = caughtShinies[id];
-    else { img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`; slot.classList.add('not-caught'); }
-    slot.appendChild(img); return slot;
+    img.className = 'dex-img';
+
+    if (caughtShinies[id]) {
+        img.src = caughtShinies[id];
+    } else {
+        // Pokémon base o regional
+        let srcId = id;
+        if (REGIONAL_IDS.includes(id)) srcId = id; // si quieres, aquí podrías mapear a sprite real de PokeAPI para regional
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${srcId}.png`;
+        slot.classList.add('not-caught');
+    }
+
+    slot.appendChild(img);
+    return slot;
 }
 function closeModals() {
     howModal.style.display = 'none';
@@ -874,5 +885,6 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
+
 
 
