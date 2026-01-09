@@ -309,7 +309,15 @@
         <h1 class="menu-title">Shiny Match</h1>
         <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
         <div class="btn-group">
-            <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
+            <button id="newGameBtn" class="menu-btn mode-play" onclick="newGame()">
+New Game
+</button>
+
+<button id="continueGameBtn" class="menu-btn mode-play"
+style="background:#10b981;display:none"
+onclick="continueGame()">
+Continue
+</button>
             <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
             <button class="menu-btn mode-how" onclick="openHow()">How to Play</button>
         </div>
@@ -348,6 +356,9 @@
 <button class="menu-btn mode-dex" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px;" onclick="openWho()">❓</button>
                 <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
                 <button class="menu-btn exit-link-btn" style="width: 80px; height: 35px; font-size: 11px;" onclick="resetToMenu()">QUIT</button>
+                <button class="menu-btn mode-how"
+style="width:80px;height:35px;font-size:11px"
+onclick="pauseGame()">PAUSE</button>
         
             </div>
         </div>
@@ -408,14 +419,62 @@ const colors = [
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
-
+const SAVE_KEY = "shinyMatchSave";
+let isPaused = false;
+    
 function saveToDex(pokeId, spriteUrl) {
     if (!caughtShinies[pokeId]) {
         caughtShinies[pokeId] = spriteUrl;
         localStorage.setItem('shinyDex', JSON.stringify(caughtShinies));
     }
 }
+function saveGame() {
+    if (gameOver) return;
 
+    const saveData = {
+        board,
+        score,
+        pokemonData,
+        caughtShinies
+    };
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    }
+function loadGame() {
+    const data = localStorage.getItem(SAVE_KEY);
+    if (!data) return false;
+
+    const save = JSON.parse(data);
+
+    board = save.board;
+    score = save.score;
+    pokemonData = save.pokemonData;
+    caughtShinies = save.caughtShinies;
+
+    scoreEl.innerText = score;
+    gameOver = false;
+
+    return true;
+        }
+
+    function clearSave() {
+    localStorage.removeItem(SAVE_KEY);
+}
+    function updateMenuButtons() {
+    const hasSave = localStorage.getItem(SAVE_KEY);
+    document.getElementById("continueGameBtn").style.display =
+        hasSave ? "flex" : "none";
+    }
+    function pauseGame() {
+    isPaused = true;
+    saveGame();
+    statusEl.innerText = "PAUSED";
+    }
+    function resumeGame() {
+    isPaused = false;
+    statusEl.innerText = "SWIPE TO MATCH";
+    }
+    
 function openHow() { howModal.style.display = 'flex'; }
 
 function openDex() {
@@ -579,6 +638,27 @@ function initBoard() {
     lastMoveTime = Date.now();
     if (isShinyOnBoard()) playSparkle();
 }
+    async function newGame() {
+    clearSave();
+    await startGame();
+    }
+
+    async function continueGame() {
+    mainMenu.style.display = 'none';
+    gameScreen.style.display = 'flex';
+
+    const ok = loadGame();
+    if (!ok) {
+        startGame();
+        return;
+    }
+
+    if (!gameInitialized) {
+        gameInitialized = true;
+        requestAnimationFrame(renderLoop);
+        setInterval(checkIdleTime, 1000);
+    }
+    }
 
 /**
  * Función de redimensionado actualizada:
@@ -753,6 +833,7 @@ function renderLoop() {
     }
     ctx.globalAlpha = 1.0;
     requestAnimationFrame(renderLoop);
+    if (isPaused) return;
 }
 
 canvas.addEventListener('pointerdown', e => { 
@@ -952,10 +1033,9 @@ function openWho() {
 window.addEventListener('resize', () => {
     if (gameScreen.style.display === 'flex') resize();
 });
+    updateMenuButtons();
+    clearSave();
     
 </script>
 </body>
 </html>
-
-
-
