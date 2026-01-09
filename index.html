@@ -117,12 +117,6 @@
             padding: clamp(4px, 0.8vw, 8px);
         }
 
-        .dex-img {
-            width: 100%;
-            height: 100%;
-            image-rendering: pixelated;
-        }
-
         .dex-slot.not-caught .dex-img {
             filter: brightness(0);
             opacity: 0.2;
@@ -238,14 +232,11 @@
     border-radius: 12px;
 }
 
-.who-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: white;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
+.dex-img, .who-item img {
+    width: clamp(40px, 12vw, 64px);
+    height: clamp(40px, 12vw, 64px);
+    image-rendering: crisp-edges;
+    object-fit: contain;
 }
 
 .who-name {
@@ -561,15 +552,21 @@ function createTile(id, allowSound = false) {
 // --- RENDERIZADO Y RESPONSIVIDAD ---
 
 function resize() {
-    // Calculamos el tamaño basado en el contenedor o ventana
     const padding = 20;
     const availableWidth = window.innerWidth - padding;
-    const availableHeight = window.innerHeight * 0.6; // Máximo 60% de la altura para dejar espacio a la UI
+    const availableHeight = window.innerHeight * 0.6;
+
+    const size = Math.min(availableWidth, availableHeight, 500);
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
     
-    const size = Math.min(availableWidth, availableHeight, 500); // Máximo 500px para que no se vea gigante en PC
-    
-    canvas.width = size;
-    canvas.height = size;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // resetear transform
+    ctx.scale(dpr, dpr);
+
     TILE_SIZE = size / GRID_SIZE;
 }
 
@@ -884,6 +881,5 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
 
 
