@@ -182,7 +182,9 @@
             cursor: crosshair;
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
             max-width: 100%;
-            height: auto;
+            max-height: 100%;
+            width: 100%;       /* escala con el contenedor */
+    height: auto;
         }
 
         #shiny-tracker {
@@ -428,6 +430,13 @@ function saveToDex(pokeId, spriteUrl) {
         localStorage.setItem('shinyDex', JSON.stringify(caughtShinies));
     }
 }
+    function resizeCanvas() {
+    // rellenar el contenedor
+    canvas.width = gameScreen.clientWidth;
+    canvas.height = gameScreen.clientHeight - document.getElementById('header').offsetHeight - 100; // 100px aprox para shiny tracker
+    TILE_SIZE = Math.min(canvas.width, canvas.height) / GRID_SIZE;
+    }
+    
 function saveGame() {
     if (gameOver) return;
 
@@ -1083,14 +1092,16 @@ function openWho() {
 
 // Escuchar cambios de tamaño de ventana para ajustar el canvas
 window.addEventListener('resize', () => {
-    if (gameScreen.style.display === 'flex') resize();
+    resizeCanvas();
 });
     updateMenuButtons();
+    resizeCanvas();
     clearSave();
     
 </script>
 </body>
 </html>
+
 
 
 
