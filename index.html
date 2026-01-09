@@ -660,12 +660,28 @@ function initBoard() {
         return;
     }
 
+    // Asegúrate de inicializar el canvas y board
+    TILE_SIZE = canvas.width / GRID_SIZE;
+
+    // Si board estaba guardado, recrea referencias correctas
+    // cada tile debe tener xOffset, yOffset y scale
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            const tile = board[r][c];
+            if (!tile) continue;
+            tile.xOffset = 0;
+            tile.yOffset = 0;
+            tile.scale = 1;
+            tile.rotation = 0;
+        }
+    }
+
     if (!gameInitialized) {
         gameInitialized = true;
         requestAnimationFrame(renderLoop);
         setInterval(checkIdleTime, 1000);
     }
-    }
+}
 
 /**
  * Función de redimensionado actualizada:
@@ -1060,5 +1076,6 @@ window.addEventListener('resize', () => {
 </script>
 </body>
 </html>
+
 
 
