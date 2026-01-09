@@ -397,7 +397,17 @@ let startX, startY;
 let sparkles = [];
 let pokemonData = [];
 let pokemonColors = [];
-const colors = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#7f7985", "#ec4899", "#f97316"];
+const colors = [
+    "#ef4444", // Rojo
+    "#f97316", // Naranja
+    "#eab308", // Amarillo
+    "#22c55e", // Verde
+    "#06b6d4", // Cian
+    "#3b82f6", // Azul
+    "#a855f7", // Morado
+    "#ec4899", // Rosa
+    "#ffffff"  // Blanco
+    ];
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
@@ -511,13 +521,31 @@ async function fetchGameData() {
     try {
         const selectedIds = new Set();
         const ALL_IDS = [...Array.from({length: 1025}, (_, i) => i + 1), ...REGIONAL_IDS];
-        while (selectedIds.size < 7) {
-            let id = ALL_IDS[Math.floor(Math.random() * ALL_IDS.length)];
+        
+        // 1. Identificar Pokémon que faltan en la ShinyDex
+        const missingShinyIds = ALL_IDS.filter(id => !caughtShinies[id]);
+
+        // 2. Seleccionar 9 Pokémon priorizando los que te faltan
+        while (selectedIds.size < 9) { // Cambiado a 9
+            let id;
+            if (missingShinyIds.length > 0 && Math.random() < 0.7) {
+                const randomIndex = Math.floor(Math.random() * missingShinyIds.length);
+                id = missingShinyIds[randomIndex];
+                missingShinyIds.splice(randomIndex, 1);
+            } else {
+                id = ALL_IDS[Math.floor(Math.random() * ALL_IDS.length)];
+            }
             selectedIds.add(id);
         }
+
         const idArray = Array.from(selectedIds);
-        for(let i=0; i < 7; i++) {
+        for(let i=0; i < 9; i++) { // Bucle de 9
             let fetchId = idArray[i];
+            
+            // Forzar Combee Hembra
+            if (fetchId === 415) fetchId = "combee-female";
+            
+            // Casos especiales de la API
             if (fetchId === 774) fetchId = "minior-red-core";
             if (fetchId === 888) fetchId = "zacian-crowned";
             if (fetchId === 889) fetchId = "zamazenta-crowned";
@@ -528,18 +556,22 @@ async function fetchGameData() {
             const data = await res.json();
             const normal = new Image();
             const shiny = new Image();
-            const pName = data.name.split('-')[0]; // Gets base name
-const capitalized = pName.charAt(0).toUpperCase() + pName.slice(1);
+            const pName = data.name.split('-')[0];
+            const capitalized = pName.charAt(0).toUpperCase() + pName.slice(1);
+            
             normal.crossOrigin = shiny.crossOrigin = "anonymous";
             normal.src = data.sprites.front_default || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_default);
             shiny.src = data.sprites.front_shiny || (data.sprites.other['official-artwork'] && data.sprites.other['official-artwork'].front_shiny);
+            
             await Promise.all([new Promise(r => normal.onload = r), new Promise(r => shiny.onload = r)]);
-pokemonData.push({ 
-    name: capitalized, // Store the name
-    images: { normal, shiny }, 
-    cry: data.cries ? data.cries.latest : null, 
-    id: data.id 
-});            pokemonColors.push(colors[i]);
+            
+            pokemonData.push({ 
+                name: capitalized,
+                images: { normal, shiny }, 
+                cry: data.cries ? data.cries.latest : null, 
+                id: data.id 
+            });
+            pokemonColors.push(colors[i]);
         }
     } catch(e) { console.error(e); }
 }
@@ -602,7 +634,8 @@ function ensurePlayableBoard() {
         for (let r = 0; r < GRID_SIZE; r++) {
             board[r] = [];
             for (let c = 0; c < GRID_SIZE; c++) {
-                board[r][c] = createTile(Math.floor(Math.random() * 7), false);
+                // Ahora genera números del 0 al 8 (para los 9 Pokémon)
+                board[r][c] = createTile(Math.floor(Math.random() * 9), false);
             }
         }
         if (findMatches().length === 0 && hasAnyMove()) possible = true;
@@ -799,39 +832,74 @@ function findMatches() {
 async function processMatches() {
     let matches = findMatches();
     let playedCries = new Set();
-    while(matches.length > 0){
+
+    while (matches.length > 0) {
         let turnScore = 0;
+
+        // 1. Marcar las coincidencias y procesar recompensas
         matches.forEach(m => {
             const tile = board[m.r][m.c];
+            
+            // Reproducir sonido del Pokémon (solo una vez por especie por combo)
             if (!playedCries.has(tile.id) && !isMuted) {
-                new Audio(pokemonData[tile.id].cry).play().catch(()=>{});
-                playedCries.add(tile.id);
+                if (pokemonData[tile.id] && pokemonData[tile.id].cry) {
+                    new Audio(pokemonData[tile.id].cry).play().catch(() => {});
+                    playedCries.add(tile.id);
+                }
             }
-            if(tile.isShiny && !tile.isMatch) captureShiny(tile.id);
+
+            // Si es un Shiny y no ha sido "capturado" todavía en este match
+            if (tile.isShiny && !tile.isMatch) {
+                captureShiny(tile.id);
+            }
+
+            // Calcular puntuación (Bonus por Shiny)
             turnScore += tile.isShiny ? 2000 : 100;
             tile.isMatch = true;
         });
+
         score += turnScore;
         scoreEl.innerText = score;
+
+        // 2. Animación de encogimiento de las piezas desaparecidas
         await animateShrink(matches);
+
+        // 3. Lógica de gravedad: las piezas superiores caen
         for (let c = 0; c < GRID_SIZE; c++) {
             let empty = 0;
+            // Recorrer la columna de abajo hacia arriba
             for (let r = GRID_SIZE - 1; r >= 0; r--) {
-                if (board[r][c].isMatch) empty++;
-                else if (empty > 0) {
-                    board[r + empty][c] = { ...board[r][c], yOffset: -empty * TILE_SIZE, isMatch: false, scale: 1 };
+                if (board[r][c].isMatch) {
+                    empty++;
+                } else if (empty > 0) {
+                    // Mover pieza hacia abajo
+                    board[r + empty][c] = { 
+                        ...board[r][c], 
+                        yOffset: -empty * TILE_SIZE, 
+                        isMatch: false, 
+                        scale: 1 
+                    };
                     board[r][c].isMatch = true;
                 }
             }
+
+            // 4. Generar nuevas piezas en los huecos superiores
             for (let r = 0; r < empty; r++) {
-                board[r][c] = createTile(Math.floor(Math.random() * 7), true);
+                // Generar ID entre 0 y 8 (para los 9 Pokémon configurados)
+                board[r][c] = createTile(Math.floor(Math.random() * 9), true);
+                // Posicionar fuera del canvas (arriba) para la animación de caída
                 board[r][c].yOffset = -empty * TILE_SIZE;
             }
         }
+
+        // 5. Esperar a que termine la animación de caída física
         await animateFalling();
+
+        // 6. Verificar si las piezas que cayeron formaron nuevos matches (Combos)
         matches = findMatches();
     }
 }
+
 
 function captureShiny(tileId) {
     const pInfo = pokemonData[tileId];
@@ -920,6 +988,8 @@ function openWho() {
 window.addEventListener('resize', () => {
     if (gameScreen.style.display === 'flex') resize();
 });
+    
 </script>
 </body>
 </html>
+
