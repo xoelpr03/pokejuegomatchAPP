@@ -370,6 +370,8 @@ const dexCount = document.getElementById('dex-count');
 
 const SHINY_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 SHINY_SOUND.volume = 1;
+const POP_SOUND_SOFT = new Audio('https://freesound.org/data/previews/411/411639_5121236-lq.mp3');
+POP_SOUND_SOFT.volume = 0.7;
 
 let isMuted = false;
 const GRID_SIZE = 7; 
@@ -582,98 +584,103 @@ function resize() {
 }
 
 function renderLoop() {
-    // 1. Control de visualización: Si el juego está oculto, no procesamos nada
     if (gameScreen.style.display === 'none') { 
         requestAnimationFrame(renderLoop); 
         return; 
     }
-    
-    // 2. Limpieza del canvas
+
+    // Limpiar canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 3. Dibujar Cuadrícula de fondo
+
+    // Dibujar cuadrícula de fondo
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
-    for(let i = 0; i <= GRID_SIZE; i++) {
+    for(let i = 0; i <= GRID_SIZE; i++){
         // Líneas verticales
-        ctx.beginPath(); 
-        ctx.moveTo(i * TILE_SIZE, 0); 
-        ctx.lineTo(i * TILE_SIZE, canvas.height); 
+        ctx.beginPath();
+        ctx.moveTo(i * TILE_SIZE, 0);
+        ctx.lineTo(i * TILE_SIZE, TILE_SIZE * GRID_SIZE);
         ctx.stroke();
-        
+
         // Líneas horizontales
-        ctx.beginPath(); 
-        ctx.moveTo(0, i * TILE_SIZE); 
-        ctx.lineTo(canvas.width, i * TILE_SIZE); 
+        ctx.beginPath();
+        ctx.moveTo(0, i * TILE_SIZE);
+        ctx.lineTo(TILE_SIZE * GRID_SIZE, i * TILE_SIZE);
         ctx.stroke();
     }
 
-    // 4. Dibujar y animar cada Tile
+    // Dibujar tiles
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
             const tile = board[r][c];
 
-            // Si el tile está desapareciendo (match), no lo dibujamos si ya es invisible
+            // Saltar tiles ya eliminados
             if (tile.isMatch && tile.scale <= 0) continue;
-            
+
             const drawX = c * TILE_SIZE + tile.xOffset;
             const drawY = r * TILE_SIZE + tile.yOffset;
-            
-            // --- Dibujo de la Celda (Fondo) ---
+
+            // Fondo del tile
             ctx.fillStyle = pokemonColors[tile.id];
             ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-            
-            // Borde especial si es Shiny
-            if(tile.isShiny) {
-                ctx.strokeStyle = "#fff"; 
+
+            // Borde especial si es shiny
+            if(tile.isShiny){
+                ctx.strokeStyle = "#fff";
                 ctx.lineWidth = 3;
                 ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             }
 
-            // --- Lógica de Animación de la Pista (Solo para UN tile) ---
-            if (tile === idleRotatingTile && tile.targetRotation !== null) {
+            // Animación de rotación idle
+            if(tile === idleRotatingTile && tile.targetRotation != null){
                 const rotationSpeed = 0.1;
-                if (tile.rotation < tile.targetRotation) {
+                if(tile.rotation < tile.targetRotation){
                     tile.rotation += rotationSpeed;
                 } else {
-                    // Finalizar la animación y resetear
                     tile.rotation = 0;
                     tile.targetRotation = null;
-                    idleRotatingTile = null; 
+                    idleRotatingTile = null;
                 }
             }
 
-            // --- Dibujo del Pokémon ---
+            // Dibujar Pokémon
             const pData = pokemonData[tile.id];
-            if (pData) {
+            if(pData){
                 const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
-                
-                // Usamos tile.scale para la animación de desaparición (Match)
                 const currentScale = tile.scale !== undefined ? tile.scale : 1;
                 const displaySize = TILE_SIZE * currentScale * 0.9;
-                
+
                 ctx.save();
-                // Movemos el contexto al centro de la celda para rotar desde el eje central
                 ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
                 ctx.rotate(tile.rotation || 0);
-                
-                // Dibujamos la imagen centrada
-                ctx.drawImage(
-                    img, 
-                    -displaySize / 2, 
-                    -displaySize / 2, 
-                    displaySize, 
-                    displaySize
-                );
+                ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
                 ctx.restore();
+            }
+
+            // Sparkles aleatorios
+            if(tile.isShiny && Math.random() < 0.05){
+                spawnSparkle({ ...tile, r, c });
             }
         }
     }
 
-    // 5. Actualizar UI y solicitar siguiente frame
+    // Dibujar sparkles
+    for(let i = sparkles.length - 1; i >= 0; i--){
+        const s = sparkles[i];
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
+        ctx.fill();
+        s.alpha -= s.decay;
+        if(s.alpha <= 0) sparkles.splice(i, 1);
+    }
+
+    // Actualizar texto de status
     updateStatusText();
+
     requestAnimationFrame(renderLoop);
 }
+
 
 // --- INTERACCIÓN ---
 
@@ -771,7 +778,25 @@ async function processMatches() {
     while(matches.length > 0){
         matches.forEach(m => {
             const tile = board[m.r][m.c];
-            if(tile.isShiny && !tile.isMatch) captureShiny(tile.id);
+            if(tile.isMatch) return;
+
+            if(tile.isShiny) {
+    captureShiny(tile.id);
+
+    const pData = pokemonData[tile.id];
+    if(pData.cry && !isMuted){
+        const crySound = new Audio(pData.cry);
+        crySound.volume = 0.6; // Ajusta volumen
+        crySound.play().catch(()=>{});
+    }
+
+} else {
+    if(!isMuted){
+        POP_SOUND_SOFT.currentTime = 0;
+        POP_SOUND_SOFT.play().catch(()=>{});
+    }
+}
+
             tile.isMatch = true;
         });
         score += matches.length * 100;
@@ -948,6 +973,18 @@ function closeModals() {
 }
 function toggleMute() { isMuted = !isMuted; muteBtn.innerText = isMuted ? '🔇' : '🔊'; }
 
+function spawnSparkle(tile) {
+    const drawX = tile.c * TILE_SIZE + TILE_SIZE/2;
+    const drawY = tile.r * TILE_SIZE + TILE_SIZE/2;
+    sparkles.push({
+        x: drawX + (Math.random()-0.5)*TILE_SIZE*0.6,
+        y: drawY + (Math.random()-0.5)*TILE_SIZE*0.6,
+        radius: Math.random()*2 + 1,
+        alpha: 1,
+        decay: Math.random()*0.03 + 0.01
+    });
+}
+
 function findFirstHint() {
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
@@ -1034,3 +1071,5 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
+
+
