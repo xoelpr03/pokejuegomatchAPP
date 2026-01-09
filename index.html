@@ -386,6 +386,7 @@ let sparkles = [];
 let pokemonData = [];
 let pokemonColors = [];
 let idleRotatingTile = null;
+let allShiniesMessageShown = false;
 const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#ec4899"];
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
@@ -878,8 +879,13 @@ function captureShiny(tileId) {
         caughtShinies[pInfo.id] = pInfo.images.shiny.src; 
         localStorage.setItem('shinyDex', JSON.stringify(caughtShinies)); 
     }
-    const img = document.createElement('img'); img.src = pInfo.images.shiny.src; img.className = 'shiny-icon';
-    shinyListEl.appendChild(img); finalShinyListEl.appendChild(img.cloneNode());
+    const img = document.createElement('img'); 
+    img.src = pInfo.images.shiny.src; 
+    img.className = 'shiny-icon';
+    shinyListEl.appendChild(img); 
+    finalShinyListEl.appendChild(img.cloneNode());
+    
+    checkAllShiniesCollected(); // <-- aquí lo comprobamos
 }
 
 function isShinyOnBoard() { return board.some(row => row.some(tile => tile.isShiny && !tile.isMatch)); }
@@ -985,11 +991,46 @@ function checkIdleTime() {
         idleRotatingTile.targetRotation = idleRotatingTile.rotation + (2 * Math.PI);
     }
 }
+function continueBoard() {
+    // Oculta el overlay del mensaje
+    gameOverOverlay.style.display = 'none';
+    
+    // Asegúrate de que el tablero siga visible
+    gameScreen.style.display = 'flex';
+    
+    // Resetea cualquier estado de animación si fuese necesario
+    isAnimating = false;
+    
+    // Vuelve a actualizar el canvas por si algo quedó parado
+    requestAnimationFrame(renderLoop);
+}
+
+function checkAllShiniesCollected() {
+    if (allShiniesMessageShown) return; // si ya se mostró, no hacemos nada
+
+    // Contamos solo los shinies de la partida actual
+    const capturedThisBoard = new Set();
+    for (let i = 0; i < finalShinyListEl.children.length; i++) {
+        const src = finalShinyListEl.children[i].src;
+        capturedThisBoard.add(src);
+    }
+
+    if (capturedThisBoard.size === 6) { // solo con los 6 diferentes
+        allShiniesMessageShown = true; // marcamos que ya lo mostramos
+        gameOverOverlay.style.display = 'flex';
+        gameOverOverlay.innerHTML = `
+            <h2 style="color: var(--shiny-gold); font-size: 30px; margin-bottom: 10px; font-weight: 900;">
+                ✨ YOU'VE CAUGHT ALL SHINIES OF THIS BOARD! ✨
+            </h2>
+            <div class="btn-group" style="width: 220px; margin: 20px auto;">
+                <button class="menu-btn mode-play" onclick="startGame()">Start a New Game</button>
+                <button class="menu-btn exit-link-btn" onclick="continueBoard()">Continue</button>
+            </div>
+        `;
+    }
+}
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
-
-
