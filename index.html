@@ -431,31 +431,46 @@ function saveToDex(pokeId, spriteUrl) {
 function saveGame() {
     if (gameOver) return;
 
+    // guardamos solo datos esenciales
+    const simpleBoard = board.map(row => row.map(tile => ({
+        id: tile.id,
+        isShiny: tile.isShiny,
+        isMatch: tile.isMatch
+    })));
+
     const saveData = {
-        board,
+        board: simpleBoard,
         score,
-        pokemonData,
         caughtShinies
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-    }
+}
 function loadGame() {
     const data = localStorage.getItem(SAVE_KEY);
     if (!data) return false;
 
     const save = JSON.parse(data);
 
-    board = save.board;
     score = save.score;
-    pokemonData = save.pokemonData;
+    scoreEl.innerText = score;
     caughtShinies = save.caughtShinies;
 
-    scoreEl.innerText = score;
-    gameOver = false;
+    // reconstruir board
+    board = save.board.map(row => row.map(tile => ({
+        id: tile.id,
+        isShiny: tile.isShiny,
+        isMatch: tile.isMatch,
+        xOffset: 0,
+        yOffset: 0,
+        scale: 1,
+        rotation: 0
+    })));
 
+    TILE_SIZE = canvas.width / GRID_SIZE;
+    gameOver = false;
     return true;
-        }
+}
 
     function clearSave() {
     localStorage.removeItem(SAVE_KEY);
@@ -548,20 +563,24 @@ async function startGame() {
     gameOverOverlay.style.display = 'none';
     gameScreen.style.display = 'flex';
     loadingEl.style.display = 'flex';
-    pokemonData = []; 
-    pokemonColors = [];
-    sparkles = [];
+    
     score = 0;
-    scoreEl.innerText = "0";
-    gameOver = false;
+    scoreEl.innerText = score;
     shinyListEl.innerHTML = "";
     finalShinyListEl.innerHTML = "";
-    
+    sparkles = [];
+    gameOver = false;
+
+    // cargar datos
     await fetchGameData();
+
+    // ahora sí podemos inicializar el tablero
     initBoard();
+    TILE_SIZE = canvas.width / GRID_SIZE;  // asegurarnos del tamaño de tiles
+
     loadingEl.style.display = 'none';
-    
-    if(!gameInitialized) {
+
+    if (!gameInitialized) {
         gameInitialized = true;
         requestAnimationFrame(renderLoop);
         setInterval(checkIdleTime, 1000);
@@ -640,10 +659,22 @@ async function fetchGameData() {
 }
 
 function initBoard() {
-    resize();
-    ensurePlayableBoard();
-    lastMoveTime = Date.now();
-    if (isShinyOnBoard()) playSparkle();
+    board = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+        const row = [];
+        for (let c = 0; c < GRID_SIZE; c++) {
+            row.push({
+                id: Math.floor(Math.random() * pokemonData.length),
+                isShiny: Math.random() * SHINY_CHANCE < 1,
+                isMatch: false,
+                xOffset: 0,
+                yOffset: 0,
+                scale: 1,
+                rotation: 0
+            });
+        }
+        board.push(row);
+    }
 }
     async function newGame() {
     clearSave();
@@ -658,22 +689,6 @@ function initBoard() {
     if (!ok) {
         startGame();
         return;
-    }
-
-    // Asegúrate de inicializar el canvas y board
-    TILE_SIZE = canvas.width / GRID_SIZE;
-
-    // Si board estaba guardado, recrea referencias correctas
-    // cada tile debe tener xOffset, yOffset y scale
-    for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-            const tile = board[r][c];
-            if (!tile) continue;
-            tile.xOffset = 0;
-            tile.yOffset = 0;
-            tile.scale = 1;
-            tile.rotation = 0;
-        }
     }
 
     if (!gameInitialized) {
@@ -1076,6 +1091,7 @@ window.addEventListener('resize', () => {
 </script>
 </body>
 </html>
+
 
 
 
