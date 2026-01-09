@@ -182,9 +182,7 @@
             cursor: crosshair;
             box-shadow: 0 10px 30px rgba(0,0,0,0.4);
             max-width: 100%;
-            max-height: 100%;
-            width: 100%;       /* escala con el contenedor */
-    height: auto;
+            height: auto;
         }
 
         #shiny-tracker {
@@ -263,38 +261,15 @@
 
     <div id="how-to-modal" class="modal-overlay">
         <div class="modal-content">
-    <h2 style="margin-top: 0; color: var(--text-main); font-weight: 900;">START THE HUNT</h2>
-    
-    <div style="display: flex; flex-direction: column; gap: 20px; text-align: left; margin: 25px 0;">
-        
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="font-size: 24px;">🔄</div>
-            <div>
-                <b style="display: block; color: var(--accent);">SWIPE TO MATCH</b>
-                <span style="font-size: 13px; color: #64748b;">Swap Pokémon to line up 3 (or more) of a kind.</span>
-            </div>
+            <h3 style="color: var(--accent); margin-top: 0;">How to Play</h3>
+            <ul style="font-size: 14px; line-height: 1.6; text-align: left; padding-left: 20px;">
+                <li><strong>Swipe</strong> to match 3 or more Pokémon.</li>
+                <li><strong>Normal Match:</strong> 100 points per tile.</li>
+                <li><strong>Shiny Match:</strong> 2,000 points per tile!</li>
+                <li><strong>Shiny Hunt:</strong> 1/100 chance per spawn.</li>
+            </ul>
+            <button class="menu-btn mode-play" onclick="closeModals()">GOT IT!</button>
         </div>
-
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="font-size: 24px;">✨</div>
-            <div>
-                <b style="display: block; color: var(--shiny-gold);">WATCH FOR SHINIES</b>
-                <span style="font-size: 13px; color: #64748b;">Every spawn has a 1/100 chance to be a Shiny.</span>
-            </div>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="font-size: 24px;">📕</div>
-            <div>
-                <b style="display: block; color: var(--success);">FILL YOUR DEX</b>
-                <span style="font-size: 13px; color: #64748b;">Matching a Shiny adds it to your collection!</span>
-            </div>
-        </div>
-
-    </div>
-
-    <button class="menu-btn mode-play" onclick="closeModals()" style="box-shadow: 0 4px 0 #1d4ed8;">GO HUNTING</button>
-</div>
     </div>
 
     <div id="dex-modal" class="modal-overlay">
@@ -311,17 +286,10 @@
         <h1 class="menu-title">Shiny Match</h1>
         <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
         <div class="btn-group">
-            <button id="newGameBtn" class="menu-btn mode-play" onclick="newGame()">
-New Game
-</button>
-
-<button id="continueGameBtn" class="menu-btn mode-play"
-style="background:#10b981;display:none"
-onclick="continueGame()">
-Continue
-</button>
+            <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
             <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
             <button class="menu-btn mode-how" onclick="openHow()">How to Play</button>
+            
         </div>
         <div class="creator-credit">created by ξawsjαke</div>
     </div>
@@ -358,9 +326,6 @@ Continue
 <button class="menu-btn mode-dex" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px;" onclick="openWho()">❓</button>
                 <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
                 <button class="menu-btn exit-link-btn" style="width: 80px; height: 35px; font-size: 11px;" onclick="resetToMenu()">QUIT</button>
-                <button class="menu-btn mode-how"
-style="width:80px;height:35px;font-size:11px"
-onclick="pauseToMenu()">MENU</button>
         
             </div>
         </div>
@@ -421,84 +386,14 @@ const colors = [
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
-const SAVE_KEY = "shinyMatchSave";
-let isPaused = false;
-    
+
 function saveToDex(pokeId, spriteUrl) {
     if (!caughtShinies[pokeId]) {
         caughtShinies[pokeId] = spriteUrl;
         localStorage.setItem('shinyDex', JSON.stringify(caughtShinies));
     }
 }
-    function resizeCanvas() {
-    // rellenar el contenedor
-    canvas.width = gameScreen.clientWidth;
-    canvas.height = gameScreen.clientHeight - document.getElementById('header').offsetHeight - 100; // 100px aprox para shiny tracker
-    TILE_SIZE = Math.min(canvas.width, canvas.height) / GRID_SIZE;
-    }
-    
-function saveGame() {
-    if (gameOver) return;
 
-    // guardamos solo datos esenciales
-    const simpleBoard = board.map(row => row.map(tile => ({
-        id: tile.id,
-        isShiny: tile.isShiny,
-        isMatch: tile.isMatch
-    })));
-
-    const saveData = {
-        board: simpleBoard,
-        score,
-        caughtShinies
-    };
-
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-}
-function loadGame() {
-    const data = localStorage.getItem(SAVE_KEY);
-    if (!data) return false;
-
-    const save = JSON.parse(data);
-
-    score = save.score;
-    scoreEl.innerText = score;
-    caughtShinies = save.caughtShinies;
-
-    // reconstruir board
-    board = save.board.map(row => row.map(tile => ({
-        id: tile.id,
-        isShiny: tile.isShiny,
-        isMatch: tile.isMatch,
-        xOffset: 0,
-        yOffset: 0,
-        scale: 1,
-        rotation: 0
-    })));
-
-    TILE_SIZE = canvas.width / GRID_SIZE;
-    gameOver = false;
-    return true;
-}
-
-    function clearSave() {
-    localStorage.removeItem(SAVE_KEY);
-}
-    function updateMenuButtons() {
-    const hasSave = localStorage.getItem(SAVE_KEY);
-    document.getElementById("continueGameBtn").style.display =
-        hasSave ? "flex" : "none";
-    }
-    function pauseGame() {
-    isPaused = true;
-    saveGame();
-    statusEl.innerText = "PAUSED";
-    }
-    function resumeGame() {
-    isPaused = false;
-    statusEl.innerText = "SWIPE TO MATCH";
-    }
-    
 function openHow() { howModal.style.display = 'flex'; }
 
 function openDex() {
@@ -572,24 +467,20 @@ async function startGame() {
     gameOverOverlay.style.display = 'none';
     gameScreen.style.display = 'flex';
     loadingEl.style.display = 'flex';
-    
+    pokemonData = []; 
+    pokemonColors = [];
+    sparkles = [];
     score = 0;
-    scoreEl.innerText = score;
+    scoreEl.innerText = "0";
+    gameOver = false;
     shinyListEl.innerHTML = "";
     finalShinyListEl.innerHTML = "";
-    sparkles = [];
-    gameOver = false;
-
-    // cargar datos
+    
     await fetchGameData();
-
-    // ahora sí podemos inicializar el tablero
     initBoard();
-    TILE_SIZE = canvas.width / GRID_SIZE;  // asegurarnos del tamaño de tiles
-
     loadingEl.style.display = 'none';
-
-    if (!gameInitialized) {
+    
+    if(!gameInitialized) {
         gameInitialized = true;
         requestAnimationFrame(renderLoop);
         setInterval(checkIdleTime, 1000);
@@ -600,13 +491,6 @@ function resetToMenu() {
     gameScreen.style.display = 'none';
     mainMenu.style.display = 'block';
 }
-    function pauseToMenu() {
-    saveGame();
-    isPaused = false;
-    gameScreen.style.display = 'none';
-    mainMenu.style.display = 'block';
-    updateMenuButtons();
-    }
 
 async function fetchGameData() {
     try {
@@ -616,8 +500,8 @@ async function fetchGameData() {
         // 1. Identificar Pokémon que faltan en la ShinyDex
         const missingShinyIds = ALL_IDS.filter(id => !caughtShinies[id]);
 
-        // 2. Seleccionar 6 Pokémon priorizando los que te faltan
-        while (selectedIds.size < 6) { // Cambiado a 6
+        // 2. Seleccionar 9 Pokémon priorizando los que te faltan
+        while (selectedIds.size < 6) { // Cambiado a 9
             let id;
             if (missingShinyIds.length > 0 && Math.random() < 0.7) {
                 const randomIndex = Math.floor(Math.random() * missingShinyIds.length);
@@ -630,7 +514,7 @@ async function fetchGameData() {
         }
 
         const idArray = Array.from(selectedIds);
-        for(let i=0; i < 6; i++) { // Bucle de 6
+        for(let i=0; i < 6; i++) { // Bucle de 9
             let fetchId = idArray[i];
             
             // Forzar Combee Hembra
@@ -668,43 +552,10 @@ async function fetchGameData() {
 }
 
 function initBoard() {
-    board = [];
-    for (let r = 0; r < GRID_SIZE; r++) {
-        const row = [];
-        for (let c = 0; c < GRID_SIZE; c++) {
-            row.push({
-                id: Math.floor(Math.random() * pokemonData.length),
-                isShiny: Math.random() * SHINY_CHANCE < 1,
-                isMatch: false,
-                xOffset: 0,
-                yOffset: 0,
-                scale: 1,
-                rotation: 0
-            });
-        }
-        board.push(row);
-    }
-}
-    async function newGame() {
-    clearSave();
-    await startGame();
-    }
-
-    async function continueGame() {
-    mainMenu.style.display = 'none';
-    gameScreen.style.display = 'flex';
-
-    const ok = loadGame();
-    if (!ok) {
-        startGame();
-        return;
-    }
-
-    if (!gameInitialized) {
-        gameInitialized = true;
-        requestAnimationFrame(renderLoop);
-        setInterval(checkIdleTime, 1000);
-    }
+    resize();
+    ensurePlayableBoard();
+    lastMoveTime = Date.now();
+    if (isShinyOnBoard()) playSparkle();
 }
 
 /**
@@ -758,7 +609,7 @@ function ensurePlayableBoard() {
         for (let r = 0; r < GRID_SIZE; r++) {
             board[r] = [];
             for (let c = 0; c < GRID_SIZE; c++) {
-                // Ahora genera números del 0 al 5 (para los 6 Pokémon)
+                // Ahora genera números del 0 al 8 (para los 9 Pokémon)
                 board[r][c] = createTile(Math.floor(Math.random() * 6), false);
             }
         }
@@ -834,49 +685,35 @@ function renderLoop() {
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
-    for (let i = 0; i <= GRID_SIZE; i++) {
-        ctx.beginPath();
-        ctx.moveTo(i * TILE_SIZE, 0);
-        ctx.lineTo(i * TILE_SIZE, canvas.height);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(0, i * TILE_SIZE);
-        ctx.lineTo(canvas.width, i * TILE_SIZE);
-        ctx.stroke();
+    for(let i=0; i<=GRID_SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(i*TILE_SIZE, 0); ctx.lineTo(i*TILE_SIZE, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i*TILE_SIZE); ctx.lineTo(canvas.width, i*TILE_SIZE); ctx.stroke();
     }
 
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
             const tile = board[r][c];
             if (tile.isMatch && tile.scale <= 0) continue;
-
             const drawX = c * TILE_SIZE + tile.xOffset;
             const drawY = r * TILE_SIZE + tile.yOffset;
-
-            ctx.globalAlpha = 1;
+            ctx.globalAlpha = 1.0;
             ctx.fillStyle = pokemonColors[tile.id];
             ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-
-            if (tile.isShiny) {
-                ctx.strokeStyle = "#fff";
-                ctx.lineWidth = 3;
+            if(tile.isShiny) {
+                ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
                 ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
                 if (Math.random() > 0.85) sparkles.push(createSparkle(drawX, drawY));
             }
-
             const pData = pokemonData[tile.id];
             if (pData) {
                 const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
-                const size = TILE_SIZE * tile.scale * 0.95;
-
+                const displaySize = TILE_SIZE * tile.scale * 0.95;
                 ctx.save();
-                ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+                ctx.translate(drawX + TILE_SIZE/2, drawY + TILE_SIZE/2);
                 ctx.rotate(tile.rotation);
-                ctx.drawImage(img, -size / 2, -size / 2, size, size);
+                ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
                 ctx.restore();
             }
         }
@@ -892,8 +729,7 @@ function renderLoop() {
         s.life -= s.decay;
         if (s.life <= 0) sparkles.splice(i, 1);
     }
-
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1.0;
     requestAnimationFrame(renderLoop);
 }
 
@@ -1092,17 +928,11 @@ function openWho() {
 
 // Escuchar cambios de tamaño de ventana para ajustar el canvas
 window.addEventListener('resize', () => {
-    resizeCanvas();
+    if (gameScreen.style.display === 'flex') resize();
 });
-    updateMenuButtons();
-    resizeCanvas();
-    clearSave();
-    
 </script>
 </body>
 </html>
-
-
 
 
 
