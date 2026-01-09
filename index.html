@@ -255,12 +255,8 @@
     color: var(--accent);
     margin-top: 4px;
 }
+
 .quit-btn {
-    .quit-btn {
-    position: absolute;
-    top: 10px;
-    left: 10px; /* O right: 10px */
-    z-index: 100;
     background: rgba(255, 255, 255, 0.1);
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -277,9 +273,9 @@
 }
 
 .quit-btn:hover {
-    background: rgba(239, 68, 68, 0.2); /* Rojo muy suave al hover */
-    border-color: rgba(239, 68, 68, 0.4);
-    transform: scale(1.05);
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.6);
+    transform: scale(1.08);
 }
 
 .quit-btn:active {
@@ -389,7 +385,8 @@ const finalScoreEl = document.getElementById('final-streak');
 const shinyListEl = document.getElementById('shiny-list');
 const finalShinyListEl = document.getElementById('final-shiny-list');
 const muteBtn = document.getElementById('muteBtn');
-
+const whoModal = document.getElementById('who-modal');
+const whoGrid = document.getElementById('who-grid');
 const howModal = document.getElementById('how-to-modal');
 const dexModal = document.getElementById('dex-modal');
 const dexGrid = document.getElementById('dex-grid');
@@ -428,7 +425,29 @@ function checkSaveFile() {
     const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) continueBtn.style.display = save ? 'flex' : 'none';
 }
+function openWho() {
+    whoGrid.innerHTML = "";
 
+    pokemonData.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'who-item';
+
+        const img = document.createElement('img');
+        img.src = p.images.normal.src;
+        img.style.width = "64px";
+        img.style.imageRendering = "pixelated";
+
+        const name = document.createElement('div');
+        name.className = 'who-name';
+        name.textContent = p.name;
+
+        item.appendChild(img);
+        item.appendChild(name);
+        whoGrid.appendChild(item);
+    });
+
+    whoModal.style.display = 'flex';
+}
 function saveGameState() {
     if (gameOver || pokemonData.length === 0) return;
     const gameState = {
@@ -843,7 +862,11 @@ function createDexSlot(id) {
     else { img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`; slot.classList.add('not-caught'); }
     slot.appendChild(img); return slot;
 }
-function closeModals() { howModal.style.display = dexModal.style.display = 'none'; }
+function closeModals() {
+    howModal.style.display = 'none';
+    dexModal.style.display = 'none';
+    whoModal.style.display = 'none';
+}
 function toggleMute() { isMuted = !isMuted; muteBtn.innerText = isMuted ? '🔇' : '🔊'; }
 
 window.addEventListener('resize', () => { resize(); });
@@ -851,6 +874,5 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
 
 
