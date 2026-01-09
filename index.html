@@ -394,6 +394,15 @@ let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
 
+function updateStatusText() {
+    if (isShinyOnBoard()) {
+        statusEl.innerText = '✨ SHINY SPAWNED! ✨';
+        statusEl.classList.add('shiny-alert'); // opcional animación colores
+    } else {
+        statusEl.innerText = 'SWIPE TO MATCH';
+        statusEl.classList.remove('shiny-alert');
+    }
+}
 // --- SISTEMA DE GUARDADO Y CONTINUACIÓN ---
 
 function checkSaveFile() {
@@ -611,6 +620,7 @@ function renderLoop() {
             }
         }
     }
+     updateStatusText(); // revisar cada frame si hay shiny
     requestAnimationFrame(renderLoop);
 }
 
@@ -733,6 +743,7 @@ async function processMatches() {
         }
         await animateFalling();
         matches = findMatches();
+        updateStatusText(); // <-- revisa si siguen habiendo shinies
     }
 }
 
@@ -881,5 +892,6 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
+
 
 
