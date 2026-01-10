@@ -1200,18 +1200,26 @@ async function processMatches() {
         score += tileScore * scoreMultiplier;
 
                 // Capture if shiny
-                if (tile.isShiny && !tile.isDitto) {
-                    captureShiny(tile.id);
-                    const pData = pokemonData[tile.id];
-                    if (pData.cry && !isMuted) {
-                        const crySound = new Audio(pData.cry);
-                        crySound.volume = 0.5;
-                        crySound.play().catch(() => {});
-                    }
-                } else if (!isMuted && !tile.isBerry) {
-                    POP_SOUND_SOFT.currentTime = 0;
-                    POP_SOUND_SOFT.play().catch(() => {});
-                }
+                if (tile.isShiny) {
+    if (tile.isDitto) {
+        // Captura Ditto shiny
+        captureShiny(132, true); // el segundo parámetro indica que es Ditto
+        if (!isMuted) playDittoCry();
+    } else {
+        // Captura Pokémon normal shiny
+        captureShiny(tile.id);
+        const pData = pokemonData[tile.id];
+        if (pData.cry && !isMuted) {
+            const crySound = new Audio(pData.cry);
+            crySound.volume = 0.5;
+            crySound.play().catch(() => {});
+        }
+    }
+} else if (!isMuted && !tile.isBerry) {
+    // Sonido normal de pop para tiles no shiny
+    POP_SOUND_SOFT.currentTime = 0;
+    POP_SOUND_SOFT.play().catch(() => {});
+}
             }
         });
 
