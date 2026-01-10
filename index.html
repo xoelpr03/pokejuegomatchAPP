@@ -792,7 +792,7 @@ async function fetchGameData() {
             const data = await res.json();
             const normal = new Image();
             const shiny = new Image();
-            const pName = data.name.split('-')[0];
+            const pName = data.name.replace(/\s+/g, '-');
             normal.crossOrigin = "anonymous";
             shiny.crossOrigin = "anonymous";
             normal.src = data.sprites.front_default || data.sprites.other['official-artwork'].front_default;
@@ -1515,4 +1515,3 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
