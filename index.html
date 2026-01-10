@@ -106,21 +106,25 @@
         }
 
         .dex-slot {
-            aspect-ratio: 1;
-            background: white;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e2e8f0;
-            position: relative;
-            padding: clamp(4px, 0.8vw, 8px);
-        }
+    position: relative; /* Para poder posicionar el número dentro */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #ccc;
+    padding: 5px;
+}
 
-        .dex-slot.not-caught .dex-img {
-            filter: brightness(0);
-            opacity: 0.2;
-        }
+.dex-number {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #555;
+    margin-bottom: 2px;
+}
+
+.not-caught .dex-img {
+    filter: brightness(0); /* Silueta negra si no está atrapado */
+    opacity: 0.5;
+}
 
         .dex-num {
             position: absolute;
@@ -1335,39 +1339,50 @@ async function startGame() {
 
 function openDex() {
     dexGrid.innerHTML = "";
-    
-    // Contador de shinies
     dexCount.innerText = `COLLECTED: ${Object.keys(caughtShinies).length}`;
 
-    // Recorremos todos los Pokémon base (1-1025)
+    // Pokémon base (1-1025)
     for (let id = 1; id <= 1025; id++) {
-        dexGrid.appendChild(createDexSlot(id));
+        dexGrid.appendChild(createDexSlot(id, false)); // 'false' porque no es regional
     }
 
-    // Añadimos los regionales
-    REGIONAL_IDS.forEach(id => {
-        dexGrid.appendChild(createDexSlot(id));
+    // Pokémon regionales con numeración R-1, R-2...
+    REGIONAL_IDS.forEach((id, index) => {
+        // Pasamos el id y el número de orden (index + 1)
+        dexGrid.appendChild(createDexSlot(id, index + 1)); 
     });
 
     dexModal.style.display = 'flex';
 }
-function createDexSlot(id) {
+function createDexSlot(id, regionalOrder) {
     const slot = document.createElement('div');
     slot.className = 'dex-slot';
+
+    const numberTag = document.createElement('span');
+    numberTag.className = 'dex-number';
+
+    // Lógica de la etiqueta
+    if (regionalOrder) {
+        // Si regionalOrder tiene un número (es decir, es regional)
+        numberTag.innerText = `R-${regionalOrder}`;
+    } else {
+        // Si no, es un Pokémon normal
+        numberTag.innerText = id;
+    }
 
     const img = document.createElement('img');
     img.className = 'dex-img';
 
+    // Usamos el id original para la imagen de la PokeAPI
     if (caughtShinies[id]) {
         img.src = caughtShinies[id];
     } else {
-        let srcId = id;
-        if (REGIONAL_IDS.includes(id)) srcId = id;
-        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${srcId}.png`;
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
         slot.classList.add('not-caught');
     }
 
-    slot.appendChild(img); // <-- dentro de la función
+    slot.appendChild(numberTag);
+    slot.appendChild(img);
     return slot;
 }
 
