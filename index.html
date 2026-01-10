@@ -619,30 +619,26 @@ function createTile(r, c, allowSound = false) {
     id = getEffectiveId(id);
 
     const dittoCount = board.flat().filter(t => t && t.isDitto).length;
-    const isBerry = Math.random() < 0.05;
-
-    // Ditto especial (solo uno en el tablero)
+    const isBerry = Math.random() < 0.05; 
     const isDitto = !isBerry && dittoCount === 0 && Math.random() < DITTO_CHANCE;
-
     const isShiny = !isBerry && Math.floor(Math.random() * SHINY_CHANCE) === 0;
 
-    if (isShiny && allowSound) playSparkle();
-
-    return {
-        id: isDitto ? 132 : id,   // 🔥 ID REAL SIEMPRE
+    return { 
+        id: isDitto ? -1 : id, 
         isDitto,
-        isShiny,
+        isShiny, 
         isBerry,
-        berryType: isBerry
-            ? BERRY_TYPES[Math.floor(Math.random() * BERRY_TYPES.length)]
-            : null,
-        xOffset: 0,
-        yOffset: 0,
-        isMatch: false,
-        scale: 1,
-        rotation: 0
+        berryType: isBerry ? BERRY_TYPES[Math.floor(Math.random() * BERRY_TYPES.length)] : null,
+        xOffset: 0, 
+        yOffset: 0, 
+        isMatch: false, 
+        scale: 1, 
+        rotation: 0,
+        // añadimos un flag para detectar cuando se pone en pantalla
+        hasSpawned: false
     };
 }
+
 
 async function triggerBerryAbility(berry, r, c) {
     let tilesToDestroy = [];
@@ -1244,6 +1240,10 @@ async function processMatches() {
     // Aquí es donde se crean las piezas nuevas que caen
     board[r][c] = createTile(Math.floor(Math.random() * 6), true);
     board[r][c].yOffset = -empty * TILE_SIZE;
+    if (board[r][c].isShiny) {
+    playSparkle();
+    board[r][c].hasSpawned = true; // opcional, para no repetir
+}
 }
         }
 
