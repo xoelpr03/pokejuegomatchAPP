@@ -276,6 +276,69 @@
 #gameCanvas {
     touch-action: none; /* Esto es vital para que el swipe funcione en móviles */
 }
+#berry-guide-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 15px 0;
+    text-align: left;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.berry-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.berry-row img {
+    width: 40px;
+    height: 40px;
+    image-rendering: pixelated;
+}
+
+.berry-info h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-main);
+    text-transform: uppercase;
+}
+
+.berry-info p {
+    margin: 2px 0 0 0;
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* --- Multiplier Timer Styling --- */
+#multiplier-timer {
+    background: rgba(251, 191, 36, 0.15); /* Light gold transparency */
+    border: 1px solid var(--shiny-gold);
+    padding: 5px 15px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+    animation: pulse-glow 2s infinite ease-in-out;
+}
+
+#timer-count {
+    font-variant-numeric: tabular-nums; /* Prevents text jumping when numbers change */
+    color: #fff;
+    text-shadow: 0 0 5px var(--shiny-gold);
+}
+
+@keyframes pulse-glow {
+    0% { transform: scale(1); box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(251, 191, 36, 0.5); }
+    100% { transform: scale(1); box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+}
 
     </style>
 </head>
@@ -291,6 +354,15 @@
             <button class="menu-btn exit-link-btn" onclick="closeModals()">CLOSE</button>
         </div>
     </div>
+
+    <div id="berry-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 style="color: var(--success); margin-top: 0;">BERRY EFFECTS</h3>
+        <div id="berry-guide-list">
+            </div>
+        <button class="menu-btn mode-play" onclick="closeModals()">GOT IT!</button>
+    </div>
+</div>
 
     <div id="main-menu" class="menu-card">
         <div style="font-size: 50px; margin-bottom: 10px;">✨</div>
@@ -333,6 +405,8 @@
         <button class="menu-btn mode-play" onclick="closeModals()">BACK TO HUNT</button>
     </div>
 </div>
+
+<button class="menu-btn mode-how" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px; background: #10b981; color: white;" onclick="openBerryGuide()">🍒</button>
 <button class="menu-btn mode-dex" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px;" onclick="openWho()">❓</button>
                 <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
                 <button class="quit-btn" onclick="quitAndSave()">✕</button>
@@ -341,6 +415,9 @@
         </div>
 
         <canvas id="gameCanvas"></canvas>
+        <div id="multiplier-timer" style="display: none; font-size: 14px; font-weight: 900; color: #fbbf24; margin-bottom: 5px;">
+        ✨ 2X POINTS: <span id="timer-count">60</span>s
+    </div>
         <div id="status">SWIPE TO MATCH</div>
 
         <div id="shiny-tracker">
@@ -367,12 +444,12 @@ const whoGrid = document.getElementById('who-grid');
 const dexModal = document.getElementById('dex-modal');
 const dexGrid = document.getElementById('dex-grid');
 const dexCount = document.getElementById('dex-count');
-
+let multiplierInterval = null;
 const SHINY_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 SHINY_SOUND.volume = 1;
 const POP_SOUND_SOFT = new Audio('https://freesound.org/data/previews/411/411639_5121236-lq.mp3');
 POP_SOUND_SOFT.volume = 0.7;
-
+let scoreMultiplier = 1
 let isMuted = false;
 const GRID_SIZE = 7; 
 const SHINY_CHANCE = 100;
@@ -397,7 +474,194 @@ let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
 // Configuración de entrada y prevención de scroll
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
+const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS'];
+const BERRY_SPRITES = {};
+const BERRY_LIST = {
+    'CHERI': 'cheri-berry',
+    'CHESTO': 'chesto-berry',
+    'PECHA': 'pecha-berry',
+    'ORAN': 'oran-berry',
+    'RAWST': 'rawst-berry',
+    'SITRUS': 'sitrus-berry'
+};
 
+function activateSitrusTimer() {
+    const timerEl = document.getElementById('multiplier-timer');
+    const countEl = document.getElementById('timer-count');
+    const statusEl = document.getElementById('status');
+    
+    // 1. Show the timer and update state
+    scoreMultiplier = 2;
+    timerEl.style.display = 'block';
+    statusEl.innerText = "✨ 2X POINTS ACTIVE! ✨";
+    
+    let timeLeft = 60;
+    countEl.innerText = timeLeft;
+
+    // 2. Clear any old timer (if you get two berries in a row)
+    if (multiplierInterval) clearInterval(multiplierInterval);
+
+    // 3. Start the countdown
+    multiplierInterval = setInterval(() => {
+        timeLeft--;
+        countEl.innerText = timeLeft;
+
+        // 4. When time runs out
+        if (timeLeft <= 0) {
+            clearInterval(multiplierInterval);
+            scoreMultiplier = 1;
+            timerEl.style.display = 'none';
+            statusEl.innerText = "SWIPE TO MATCH";
+        }
+    }, 1000);
+}
+
+// Add this to your startGame or an init function to preload them
+async function preloadBerries() {
+    for (const [key, fileName] of Object.entries(BERRY_LIST)) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${fileName}.png`;
+        await new Promise(r => img.onload = r);
+        BERRY_SPRITES[key] = img;
+    }
+}
+const COLORS = ['red', 'blue', 'pink', 'orange', 'green', 'yellow'];
+
+function createTile(id, allowSound = false) {
+    // 5% chance to be a berry
+    const isBerry = Math.random() < 0.05; 
+    
+    // Only roll for shiny if it's NOT a berry
+    const isShiny = !isBerry && Math.floor(Math.random() * SHINY_CHANCE) === 0;
+    
+    if (isShiny && allowSound) playSparkle();
+
+    return { 
+        id, // Color ID (0-5)
+        isShiny, 
+        isBerry,
+        berryType: isBerry ? BERRY_TYPES[Math.floor(Math.random() * BERRY_TYPES.length)] : null,
+        xOffset: 0, 
+        yOffset: 0, 
+        isMatch: false, 
+        scale: 1, 
+        rotation: 0 
+    };
+}
+async function triggerBerryAbility(berry, r, c) {
+    let tilesToDestroy = [];
+
+    switch (berry.berryType) {
+        case 'CHERI': // Column
+            for (let i = 0; i < GRID_SIZE; i++) tilesToDestroy.push({r: i, c: c});
+            break;
+        case 'CHESTO': // Row
+            for (let j = 0; j < GRID_SIZE; j++) tilesToDestroy.push({r: r, c: j});
+            break;
+        case 'PECHA': // All of same color
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (board[i][j].id === berry.id) tilesToDestroy.push({r: i, c: j});
+                }
+            }
+            break;
+        case 'ORAN': // 3x3 Square
+            for (let i = r - 1; i <= r + 1; i++) {
+                for (let j = c - 1; j <= c + 1; j++) {
+                    if (i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE) tilesToDestroy.push({r: i, c: j});
+                }
+            }
+            break;
+        case 'RAWST': // Diagonals (X shape)
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (Math.abs(r - i) === Math.abs(c - j)) tilesToDestroy.push({r: i, c: j});
+                }
+            }
+            break;
+        case 'SITRUS': // Double Points
+    scoreMultiplier = 2;
+    
+    // UI Elements
+    const timerEl = document.getElementById('multiplier-timer');
+    const countEl = document.getElementById('timer-count');
+    
+    statusEl.innerText = '✨ 2X POINTS ACTIVE! ✨';
+    statusEl.classList.add('shiny-alert');
+    timerEl.style.display = 'block';
+    
+    let timeLeft = 60;
+    countEl.innerText = timeLeft;
+
+    // Clear existing timer if one is already running (re-triggering a berry)
+    if (multiplierInterval) clearInterval(multiplierInterval);
+
+    multiplierInterval = setInterval(() => {
+        timeLeft--;
+        countEl.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(multiplierInterval);
+            scoreMultiplier = 1;
+            timerEl.style.display = 'none';
+            statusEl.classList.remove('shiny-alert');
+            updateStatusText();
+        }
+    }, 1000);
+    break;
+    }
+
+    if (tilesToDestroy.length > 0) {
+        tilesToDestroy.forEach(pos => {
+            const t = board[pos.r][pos.c];
+            if (!t.isMatch) {
+                t.isMatch = true;
+                if (t.isShiny) captureShiny(t.id);
+            }
+        });
+        // Increase score based on extra tiles destroyed
+        score += tilesToDestroy.length * 50 * scoreMultiplier;
+    }
+}
+function activateBerry(berry, x, y) {
+    switch (berry.ability) {
+        case 'CHERI': // Column
+            for (let i = 0; i < gridHeight; i++) destroyTile(x, i);
+            break;
+
+        case 'CHESTO': // Row
+            for (let j = 0; j < gridWidth; j++) destroyTile(j, y);
+            break;
+
+        case 'PECHA': // Clear same color
+            allTiles.forEach(tile => {
+                if (tile.color === berry.color) destroyTile(tile.x, tile.y);
+            });
+            break;
+
+        case 'ORAN': // 3x3 Square
+            for (let i = x - 1; i <= x + 1; i++) {
+                for (let j = y - 1; j <= y + 1; j++) {
+                    if (isValidCoords(i, j)) destroyTile(i, j);
+                }
+            }
+            break;
+
+        case 'RAWST': // Diagonals
+            allTiles.forEach(tile => {
+                if (Math.abs(tile.x - x) === Math.abs(tile.y - y)) {
+                    destroyTile(tile.x, tile.y);
+                }
+            });
+            break;
+
+        case 'SITRUS': // Double score
+            scoreMultiplier = 2;
+            setTimeout(() => { scoreMultiplier = 1; }, 60000);
+            break;
+    }
+}
 function updateStatusText() {
     if (isShinyOnBoard()) {
         statusEl.innerText = '✨ SHINY SPAWNED! ✨';
@@ -556,11 +820,6 @@ function ensurePlayableBoard() {
     }
 }
 
-function createTile(id, allowSound = false) {
-    const isShiny = Math.floor(Math.random() * SHINY_CHANCE) === 0;
-    if (isShiny && allowSound) playSparkle();
-    return { id, isShiny, xOffset: 0, yOffset: 0, isMatch: false, scale: 1, rotation: 0 };
-}
 
 // --- RENDERIZADO Y RESPONSIVIDAD ---
 
@@ -589,82 +848,94 @@ function renderLoop() {
         return; 
     }
 
-    // Limpiar canvas
+    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Dibujar cuadrícula de fondo
+    // Draw background grid
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
     for(let i = 0; i <= GRID_SIZE; i++){
-        // Líneas verticales
         ctx.beginPath();
         ctx.moveTo(i * TILE_SIZE, 0);
         ctx.lineTo(i * TILE_SIZE, TILE_SIZE * GRID_SIZE);
         ctx.stroke();
 
-        // Líneas horizontales
         ctx.beginPath();
         ctx.moveTo(0, i * TILE_SIZE);
         ctx.lineTo(TILE_SIZE * GRID_SIZE, i * TILE_SIZE);
         ctx.stroke();
     }
 
-    // Dibujar tiles
+    // Draw tiles
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
             const tile = board[r][c];
 
-            // Saltar tiles ya eliminados
+            // Skip deleted tiles
             if (tile.isMatch && tile.scale <= 0) continue;
 
             const drawX = c * TILE_SIZE + tile.xOffset;
             const drawY = r * TILE_SIZE + tile.yOffset;
+            const currentScale = tile.scale !== undefined ? tile.scale : 1;
+            const displaySize = TILE_SIZE * currentScale * 0.9;
 
-            // Fondo del tile
+            // 1. Draw Tile Background
             ctx.fillStyle = pokemonColors[tile.id];
+            ctx.globalAlpha = 1.0;
             ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
 
-            // Borde especial si es shiny
+            // 2. Shiny Border
             if(tile.isShiny){
                 ctx.strokeStyle = "#fff";
                 ctx.lineWidth = 3;
                 ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             }
 
-            // Animación de rotación idle
+            // 3. Idle Rotation logic
             if(tile === idleRotatingTile && tile.targetRotation != null){
                 const rotationSpeed = 0.1;
-                if(tile.rotation < tile.targetRotation){
-                    tile.rotation += rotationSpeed;
-                } else {
+                if(tile.rotation < tile.targetRotation) tile.rotation += rotationSpeed;
+                else {
                     tile.rotation = 0;
                     tile.targetRotation = null;
                     idleRotatingTile = null;
                 }
             }
 
-            // Dibujar Pokémon
-            const pData = pokemonData[tile.id];
-            if(pData){
-                const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
-                const currentScale = tile.scale !== undefined ? tile.scale : 1;
-                const displaySize = TILE_SIZE * currentScale * 0.9;
+            // 4. Draw Content (Pokemon or Berry)
+            ctx.save();
+            ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
+            ctx.rotate(tile.rotation || 0);
 
-                ctx.save();
-                ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
-                ctx.rotate(tile.rotation || 0);
-                ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
-                ctx.restore();
+            if (tile.isBerry) {
+                // Background glow for berries to highlight their color-type
+                ctx.beginPath();
+                ctx.arc(0, 0, displaySize / 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.fill();
+
+                const berryImg = BERRY_SPRITES[tile.berryType];
+                if (berryImg) {
+                    ctx.imageRendering = "pixelated"; // Keep that sharp Pokemon look
+                    ctx.drawImage(berryImg, -displaySize/2.5, -displaySize/2.5, displaySize/1.25, displaySize/1.25);
+                }
+            } else {
+                const pData = pokemonData[tile.id];
+                if (pData) {
+                    const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
+                    ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
+                }
             }
+            ctx.restore();
 
-            // Sparkles aleatorios
+            // 5. Random Shiny Sparkles
             if(tile.isShiny && Math.random() < 0.05){
                 spawnSparkle({ ...tile, r, c });
             }
         }
     }
 
-    // Dibujar sparkles
+    // Draw all active sparkles
     for(let i = sparkles.length - 1; i >= 0; i--){
         const s = sparkles[i];
         ctx.beginPath();
@@ -675,9 +946,7 @@ function renderLoop() {
         if(s.alpha <= 0) sparkles.splice(i, 1);
     }
 
-    // Actualizar texto de status
     updateStatusText();
-
     requestAnimationFrame(renderLoop);
 }
 
@@ -735,23 +1004,22 @@ async function moveTile(r, c, dir) {
         isAnimating = true;
         await animateSlide(r, c, tr, tc);
         
-        const temp = { id: board[r][c].id, isShiny: board[r][c].isShiny };
-        board[r][c].id = board[tr][tc].id; 
-        board[r][c].isShiny = board[tr][tc].isShiny;
-        board[tr][tc].id = temp.id; 
-        board[tr][tc].isShiny = temp.isShiny;
+        // SWAP THE ENTIRE OBJECT
+        const temp = board[r][c];
+        board[r][c] = board[tr][tc];
+        board[tr][tc] = temp;
 
+        // Only process if a REAL match-3 was made
         if (findMatches().length > 0) {
             await processMatches();
             saveGameState();
             if (!hasAnyMove()) endGame();
         } else {
-            await animateSlide(r, c, tr, tc); // Deshacer movimiento
-            const swapBack = { id: board[tr][tc].id, isShiny: board[tr][tc].isShiny };
-            board[tr][tc].id = board[r][c].id; 
-            board[tr][tc].isShiny = board[r][c].isShiny;
-            board[r][c].id = swapBack.id; 
-            board[r][c].isShiny = swapBack.isShiny;
+            // Undo: Swap back the entire objects
+            await animateSlide(r, c, tr, tc); 
+            const swapBack = board[tr][tc];
+            board[tr][tc] = board[r][c];
+            board[r][c] = swapBack;
         }
         isAnimating = false;
     }
@@ -775,42 +1043,78 @@ async function animateSlide(r1, c1, r2, c2) {
 
 async function processMatches() {
     let matches = findMatches();
-    while(matches.length > 0){
+    
+    while (matches.length > 0) {
+        let tilesToDestroy = new Set();
+
+        // 1. Check all matches and identify Berry AoE patterns
         matches.forEach(m => {
             const tile = board[m.r][m.c];
-            if(tile.isMatch) return;
-
-            if(tile.isShiny) {
-    captureShiny(tile.id);
-
-    const pData = pokemonData[tile.id];
-    if(pData.cry && !isMuted){
-        const crySound = new Audio(pData.cry);
-        crySound.volume = 0.6; // Ajusta volumen
-        crySound.play().catch(()=>{});
-    }
-
-} else {
-    if(!isMuted){
-        POP_SOUND_SOFT.currentTime = 0;
-        POP_SOUND_SOFT.play().catch(()=>{});
-    }
-}
-
-            tile.isMatch = true;
+            if (!tile.isMatch) {
+                tilesToDestroy.add(`${m.r},${m.c}`);
+                
+                if (tile.isBerry) {
+                    // ACTIVATE SITRUS TIMER IF MATCHED
+                    if (tile.berryType === 'SITRUS') {
+                        activateSitrusTimer();
+                    }
+                    
+                    const pattern = getBerryPattern(tile, m.r, m.c);
+                    pattern.forEach(pos => {
+                        // If the berry explosion hits OTHER berries, trigger them too
+                        const hitTile = board[pos.r][pos.c];
+                        if (hitTile.isBerry && !tilesToDestroy.has(`${pos.r},${pos.c}`)) {
+                             if (hitTile.berryType === 'SITRUS') activateSitrusTimer();
+                        }
+                        tilesToDestroy.add(`${pos.r},${pos.c}`);
+                    });
+                }
+            }
         });
-        score += matches.length * 100;
+
+        // 2. Process all marked tiles
+        tilesToDestroy.forEach(posKey => {
+            const [r, c] = posKey.split(',').map(Number);
+            const tile = board[r][c];
+
+            if (!tile.isMatch) {
+                tile.isMatch = true;
+
+                // Capture if shiny
+                if (tile.isShiny) {
+                    captureShiny(tile.id);
+                    const pData = pokemonData[tile.id];
+                    if (pData.cry && !isMuted) {
+                        const crySound = new Audio(pData.cry);
+                        crySound.volume = 0.5;
+                        crySound.play().catch(() => {});
+                    }
+                } else if (!isMuted && !tile.isBerry) {
+                    POP_SOUND_SOFT.currentTime = 0;
+                    POP_SOUND_SOFT.play().catch(() => {});
+                }
+            }
+        });
+
+        // 3. Score Calculation
+        score += tilesToDestroy.size * 100 * scoreMultiplier;
         scoreEl.innerText = score;
-        await animateShrink(matches);
-        
-        // Lógica de caída
+
+        // 4. Animation and Refill
+        await animateShrink(Array.from(tilesToDestroy).map(key => {
+            const [r, c] = key.split(',').map(Number);
+            return { r, c };
+        }));
+
+        // Gravity Logic
         for (let c = 0; c < GRID_SIZE; c++) {
             let empty = 0;
             for (let r = GRID_SIZE - 1; r >= 0; r--) {
-                if (board[r][c].isMatch) empty++;
-                else if (empty > 0) {
+                if (board[r][c].isMatch) {
+                    empty++;
+                } else if (empty > 0) {
                     board[r + empty][c] = { ...board[r][c], yOffset: -empty * TILE_SIZE, isMatch: false, scale: 1 };
-                    board[r][c].isMatch = true;
+                    board[r][c] = { isMatch: true };
                 }
             }
             for (let r = 0; r < empty; r++) {
@@ -818,10 +1122,74 @@ async function processMatches() {
                 board[r][c].yOffset = -empty * TILE_SIZE;
             }
         }
+
         await animateFalling();
+        
+        // Re-check for chain reactions
         matches = findMatches();
-        updateStatusText(); // <-- revisa si siguen habiendo shinies
+        updateStatusText();
     }
+}
+function resetSitrusEffect() {
+    if (multiplierInterval) {
+        clearInterval(multiplierInterval);
+        multiplierInterval = null;
+    }
+    scoreMultiplier = 1;
+    
+    // UI Cleanup
+    const timerEl = document.getElementById('multiplier-timer');
+    const statusEl = document.getElementById('status');
+    
+    if (timerEl) timerEl.style.display = 'none';
+    if (statusEl) {
+        statusEl.classList.remove('shiny-alert');
+        statusEl.innerText = "SWIPE TO MATCH";
+    }
+}
+/** * Helper function to calculate which coordinates a berry hits
+ */
+function getBerryPattern(berry, r, c) {
+    let pattern = [];
+    switch (berry.berryType) {
+        case 'CHERI': // Column
+            for (let i = 0; i < GRID_SIZE; i++) pattern.push({ r: i, c: c });
+            break;
+        case 'CHESTO': // Row
+            for (let j = 0; j < GRID_SIZE; j++) pattern.push({ r: r, c: j });
+            break;
+        case 'PECHA': // Same Color
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (board[i][j].id === berry.id) pattern.push({ r: i, c: j });
+                }
+            }
+            break;
+        case 'ORAN': // 3x3
+            for (let i = r - 1; i <= r + 1; i++) {
+                for (let j = c - 1; j <= c + 1; j++) {
+                    if (i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE) pattern.push({ r: i, c: j });
+                }
+            }
+            break;
+        case 'RAWST': // Diagonals
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (Math.abs(r - i) === Math.abs(c - j)) pattern.push({ r: i, c: j });
+                }
+            }
+            break;
+        case 'SITRUS': // Double Points
+            scoreMultiplier = 2;
+            statusEl.innerText = '✨ 2X POINTS ACTIVE! ✨';
+            statusEl.classList.add('shiny-alert');
+            setTimeout(() => {
+                scoreMultiplier = 1;
+                updateStatusText();
+            }, 60000);
+            break;
+    }
+    return pattern;
 }
 
 async function animateShrink(matches) {
@@ -861,16 +1229,30 @@ async function animateFalling() {
 
 function findMatches() {
     let matches = [];
+    
+    // Horizontal
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE - 2; c++) {
-            if (board[r][c].id === board[r][c+1].id && board[r][c].id === board[r][c+2].id) 
-                matches.push({r, c}, {r, c:c+1}, {r, c:c+2});
+            let t1 = board[r][c], t2 = board[r][c+1], t3 = board[r][c+2];
+            // Check if IDs match AND ensure they aren't ALL berries
+            if (t1.id === t2.id && t2.id === t3.id) {
+                // Optional: Prevent a match of 3 berries only
+                if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
+                    matches.push({r, c}, {r, c:c+1}, {r, c:c+2});
+                }
+            }
         }
     }
+    
+    // Vertical
     for (let c = 0; c < GRID_SIZE; c++) {
         for (let r = 0; r < GRID_SIZE - 2; r++) {
-            if (board[r][c].id === board[r+1][c].id && board[r][c].id === board[r+2][c].id) 
-                matches.push({r, c}, {r:r+1, c}, {r:r+2, c});
+            let t1 = board[r][c], t2 = board[r+1][c], t3 = board[r+2][c];
+            if (t1.id === t2.id && t2.id === t3.id) {
+                if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
+                    matches.push({r, c}, {r:r+1, c}, {r:r+2, c});
+                }
+            }
         }
     }
     return matches;
@@ -909,24 +1291,46 @@ function captureShiny(tileId) {
     img.className = 'shiny-icon';
     shinyListEl.appendChild(img); 
     finalShinyListEl.appendChild(img.cloneNode());
-    
-    checkAllShiniesCollected(); // <-- aquí lo comprobamos
+
 }
 
 function isShinyOnBoard() { return board.some(row => row.some(tile => tile.isShiny && !tile.isMatch)); }
 function playSparkle() { if (!isMuted) { SHINY_SOUND.currentTime = 0; SHINY_SOUND.play().catch(()=>{}); } }
-function resetToMenu() { gameScreen.style.display = 'none'; mainMenu.style.display = 'block'; checkSaveFile(); }
+function resetToMenu() { resetSitrusEffect(); gameScreen.style.display = 'none'; mainMenu.style.display = 'block'; checkSaveFile(); }
 function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOverlay.style.display = 'flex'; localStorage.removeItem('shinyMatchSave'); checkSaveFile(); }
 
 async function startGame() {
-    mainMenu.style.display = 'none'; gameOverOverlay.style.display = 'none'; gameScreen.style.display = 'flex'; loadingEl.style.display = 'flex';
-    pokemonData = []; pokemonColors = []; sparkles = []; score = 0; scoreEl.innerText = "0"; gameOver = false;
-    shinyListEl.innerHTML = ""; finalShinyListEl.innerHTML = "";
-    await fetchGameData();
+    resetSitrusEffect();
+    mainMenu.style.display = 'none'; 
+    gameOverOverlay.style.display = 'none'; 
+    gameScreen.style.display = 'flex'; 
+    loadingEl.style.display = 'flex';
+    
+    // Reset game state
+    pokemonData = []; 
+    pokemonColors = []; 
+    sparkles = []; 
+    score = 0; 
+    scoreEl.innerText = "0"; 
+    gameOver = false;
+    shinyListEl.innerHTML = ""; 
+    finalShinyListEl.innerHTML = "";
+    
+    // Load Berries AND Pokemon data simultaneously
+    await Promise.all([fetchGameData(), preloadBerries()]);
+
     if (pokemonData.length > 0) {
-        initBoard(); loadingEl.style.display = 'none';
-        if(!gameInitialized) { gameInitialized = true; requestAnimationFrame(renderLoop); setInterval(checkIdleTime, 1000); }
-    } else { alert("Error loading Pokémon."); resetToMenu(); }
+        initBoard(); 
+        loadingEl.style.display = 'none';
+        if(!gameInitialized) { 
+            gameInitialized = true; 
+            requestAnimationFrame(renderLoop); 
+            setInterval(checkIdleTime, 1000); 
+        }
+    } else { 
+        alert("Error loading Pokémon."); 
+        resetToMenu(); 
+    }
 }
 
 function openDex() {
@@ -1052,24 +1456,48 @@ function checkAllShiniesCollected() {
         capturedThisBoard.add(src);
     }
 
-    if (capturedThisBoard.size === 6) { // solo con los 6 diferentes
-        allShiniesMessageShown = true; // marcamos que ya lo mostramos
-        gameOverOverlay.style.display = 'flex';
-        gameOverOverlay.innerHTML = `
-            <h2 style="color: var(--shiny-gold); font-size: 30px; margin-bottom: 10px; font-weight: 900;">
-                ✨ YOU'VE CAUGHT ALL SHINIES OF THIS BOARD! ✨
-            </h2>
-            <div class="btn-group" style="width: 220px; margin: 20px auto;">
-                <button class="menu-btn mode-play" onclick="startGame()">Start a New Game</button>
-                <button class="menu-btn exit-link-btn" onclick="continueBoard()">Continue</button>
-            </div>
-        `;
-    }
+}
+function openBerryGuide() {
+    const guideList = document.getElementById('berry-guide-list');
+    guideList.innerHTML = "";
+
+    const descriptions = {
+        'CHERI': 'Clears the entire COLUMN.',
+        'CHESTO': 'Clears the entire ROW.',
+        'PECHA': 'Clears ALL Pokémon of the same color.',
+        'ORAN': 'Explodes in a 3x3 SQUARE area.',
+        'RAWST': 'Clears tiles in an X-SHAPED diagonal.',
+        'SITRUS': 'DOUBLE POINTS for 60 seconds!'
+    };
+
+    BERRY_TYPES.forEach(type => {
+        const row = document.createElement('div');
+        row.className = 'berry-row';
+        
+        const img = new Image();
+        img.src = BERRY_SPRITES[type].src;
+        
+        const info = document.createElement('div');
+        info.className = 'berry-info';
+        info.innerHTML = `<h4>${type} BERRY</h4><p>${descriptions[type]}</p>`;
+        
+        row.appendChild(img);
+        row.appendChild(info);
+        guideList.appendChild(row);
+    });
+
+    document.getElementById('berry-modal').style.display = 'flex';
+}
+
+// Update your closeModals to include this new one
+function closeModals() {
+    document.getElementById('dex-modal').style.display = 'none';
+    document.getElementById('who-modal').style.display = 'none';
+    document.getElementById('berry-modal').style.display = 'none';
 }
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
 
