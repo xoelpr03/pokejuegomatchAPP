@@ -343,6 +343,45 @@
     50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(251, 191, 36, 0.5); }
     100% { transform: scale(1); box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
 }
+.tutorial-body {
+    text-align: left;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 15px;
+    color: white;
+}
+
+.tutorial-body h3 {
+    color: #f97316; /* Orange color to stand out */
+    margin-bottom: 5px;
+    font-size: 1.1em;
+    text-transform: uppercase;
+}
+
+.tutorial-body p {
+    font-size: 0.95em;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    color: #cbd5e1;
+}
+
+hr { 
+    border: 0; 
+    border-top: 1px solid #475569; 
+    margin: 15px 0; 
+}
+
+/* Ensure buttons look consistent with your theme */
+.close-btn {
+    background: #22c55e;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+}
 
     </style>
 </head>
@@ -369,16 +408,19 @@
 </div>
 
     <div id="main-menu" class="menu-card">
-        <div style="font-size: 50px; margin-bottom: 10px;">✨</div>
-        <h1 class="menu-title">Shiny Match</h1>
-        <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
-        <div class="btn-group">
-            <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
-            <button id="continue-btn" class="menu-btn mode-play" style="background: #10b981; display: none;" onclick="continueGame()">Continue Hunting</button>
-            <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
-        </div>
-        <div class="creator-credit">created by ξawsjαke</div>
+    <div style="font-size: 50px; margin-bottom: 10px;">✨</div>
+    <h1 class="menu-title">Shiny Match</h1>
+    <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
+    <div class="btn-group">
+        <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
+        <button id="continue-btn" class="menu-btn mode-play" style="background: #10b981; display: none;" onclick="continueGame()">Continue Hunting</button>
+        
+        <button class="menu-btn" style="background: #6366f1;" onclick="openTutorial()">How to Play</button>
+        
+        <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
     </div>
+    <div class="creator-credit">created by ξawsjαke</div>
+</div>
 
     <div id="game-screen">
         <div id="game-over-overlay">
@@ -429,8 +471,29 @@
             <div id="shiny-list"></div>
         </div>
     </div>
+    <div id="tutorial-modal" class="modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+    <div class="modal-content" style="background: #1e293b; border: 2px solid #475569; border-radius: 15px; width: 100%; max-width: 400px; padding: 20px; color: white;">
+        <h2 style="color: #eab308; margin-top: 0; text-align: center;">🎮 How To Play?</h2>
+        
+        <div style="max-height: 60vh; overflow-y: auto; text-align: left; font-size: 14px; line-height: 1.5;">
+            <p><strong>✨ Catch Shinies:</strong> Swipe in any direction to match 3 or more Pokémon. Match a <b>Shiny</b> and it’s added to your permanent Dex!</p>
+
+<p><strong>🌈 Ditto:</strong> The ultimate wild card! It can match any color to help you complete lines.</p>
+
+<p><strong>🍒 Berries:</strong> Match them with Pokémon to trigger special powers, like clearing lines or doubling your points!</p>
+
+<p><strong>🔄 Idle Hints:</strong> Stuck? After 10 seconds of no moves, a piece will <b>rotate</b> to show you a valid match.</p>
+
+        </div>
+
+        <button class="menu-btn" style="background: #ef4444; width: 100%; margin-top: 15px;" onclick="closeModals()">Got it!</button>
+    </div>
+</div>
 
 <script>
+    const tutorialModal = document.getElementById('tutorial-modal');
+    const DITTO_CHANCE = 0.01;
+    const DITTO_IMAGE = new Image(); DITTO_IMAGE.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png';
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
@@ -472,7 +535,8 @@ let idleRotatingTile = null;
 let allShiniesMessageShown = false;
 const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#ec4899"];
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
-
+const DITTO_CRY = new Audio('https://raw.githubusercontent.com/PokeAPI/stock-pokemon-cries/master/cries/pokemon/latest/132.ogg');
+DITTO_CRY.volume = 0.5; // Adjust volume as needed
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
 
 // Configuración de entrada y prevención de scroll
@@ -488,7 +552,12 @@ const BERRY_LIST = {
     'RAWST': 'rawst-berry',
     'SITRUS': 'sitrus-berry'
 };
-
+function playDittoCry() {
+    if (!isMuted) {
+        DITTO_CRY.currentTime = 0;
+        DITTO_CRY.play().catch(() => {});
+    }
+}
 function activateSitrusTimer() {
     const timerEl = document.getElementById('multiplier-timer');
     const countEl = document.getElementById('timer-count');
@@ -531,28 +600,50 @@ async function preloadBerries() {
     }
 }
 const COLORS = ['red', 'blue', 'pink', 'orange', 'green', 'yellow'];
+const FORM_OVERRIDES = {
+    964: 10256, // Palafin Zero -> Palafin Hero
+    774: 10130, // Minior Meteor -> Minior Core (Red)
+    888: 10188, // Zacian -> Zacian Crowned
+    889: 10189  // Zamazenta -> Zamazenta Crowned
+};
 
-function createTile(id, allowSound = false) {
-    // 5% chance to be a berry
-    const isBerry = Math.random() < 0.05; 
-    
-    // Only roll for shiny if it's NOT a berry
+function getRandomPokemonId() {
+    // Elegimos un Pokémon que ya está en pokemonData
+    if (pokemonData.length === 0) return 0; // fallback si todavía no cargó nada
+    const keys = Object.keys(pokemonData); // los IDs cargados
+    const randKey = keys[Math.floor(Math.random() * keys.length)];
+    return parseInt(randKey);
+}
+function createTile(r, c, allowSound = false) {
+    let id = getRandomPokemonId();
+    id = getEffectiveId(id);
+
+    const dittoCount = board.flat().filter(t => t && t.isDitto).length;
+    const isBerry = Math.random() < 0.05;
+
+    // Ditto especial (solo uno en el tablero)
+    const isDitto = !isBerry && dittoCount === 0 && Math.random() < DITTO_CHANCE;
+
     const isShiny = !isBerry && Math.floor(Math.random() * SHINY_CHANCE) === 0;
-    
+
     if (isShiny && allowSound) playSparkle();
 
-    return { 
-        id, // Color ID (0-5)
-        isShiny, 
+    return {
+        id: isDitto ? 132 : id,   // 🔥 ID REAL SIEMPRE
+        isDitto,
+        isShiny,
         isBerry,
-        berryType: isBerry ? BERRY_TYPES[Math.floor(Math.random() * BERRY_TYPES.length)] : null,
-        xOffset: 0, 
-        yOffset: 0, 
-        isMatch: false, 
-        scale: 1, 
-        rotation: 0 
+        berryType: isBerry
+            ? BERRY_TYPES[Math.floor(Math.random() * BERRY_TYPES.length)]
+            : null,
+        xOffset: 0,
+        yOffset: 0,
+        isMatch: false,
+        scale: 1,
+        rotation: 0
     };
 }
+
 async function triggerBerryAbility(berry, r, c) {
     let tilesToDestroy = [];
 
@@ -729,6 +820,10 @@ function quitAndSave() {
     resetToMenu();
 }
 
+function getEffectiveId(id) {
+    return FORM_OVERRIDES[id] || id;
+}
+
 async function continueGame() {
     const rawData = localStorage.getItem('shinyMatchSave');
     if (!rawData) return;
@@ -852,10 +947,10 @@ function renderLoop() {
         return; 
     }
 
-    // Clear canvas
+    // Limpiar canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw background grid
+    // Dibujar rejilla de fondo
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
     for(let i = 0; i <= GRID_SIZE; i++){
@@ -870,12 +965,12 @@ function renderLoop() {
         ctx.stroke();
     }
 
-    // Draw tiles
+    // Dibujar piezas
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
             const tile = board[r][c];
 
-            // Skip deleted tiles
+            // Saltar piezas eliminadas
             if (tile.isMatch && tile.scale <= 0) continue;
 
             const drawX = c * TILE_SIZE + tile.xOffset;
@@ -883,19 +978,29 @@ function renderLoop() {
             const currentScale = tile.scale !== undefined ? tile.scale : 1;
             const displaySize = TILE_SIZE * currentScale * 0.9;
 
-            // 1. Draw Tile Background
-            ctx.fillStyle = pokemonColors[tile.id];
+            // 1. DIBUJAR FONDO DE LA PIEZA
+            if (tile.isDitto) {
+                // Efecto Arcoíris Animado para Ditto
+                const hue = (Date.now() / 15) % 360;
+                const gradient = ctx.createLinearGradient(drawX, drawY, drawX + TILE_SIZE, drawY + TILE_SIZE);
+                gradient.addColorStop(0, `hsl(${hue}, 80%, 60%)`);
+                gradient.addColorStop(1, `hsl(${(hue + 60) % 360}, 80%, 60%)`);
+                ctx.fillStyle = gradient;
+            } else {
+                ctx.fillStyle = pokemonColors[tile.id] || "#334155";
+            }
+            
             ctx.globalAlpha = 1.0;
             ctx.fillRect(drawX + 2, drawY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
 
-            // 2. Shiny Border
+            // 2. BORDE SHINY
             if(tile.isShiny){
                 ctx.strokeStyle = "#fff";
                 ctx.lineWidth = 3;
                 ctx.strokeRect(drawX + 4, drawY + 4, TILE_SIZE - 8, TILE_SIZE - 8);
             }
 
-            // 3. Idle Rotation logic
+            // 3. LÓGICA DE ROTACIÓN IDLE
             if(tile === idleRotatingTile && tile.targetRotation != null){
                 const rotationSpeed = 0.1;
                 if(tile.rotation < tile.targetRotation) tile.rotation += rotationSpeed;
@@ -906,13 +1011,12 @@ function renderLoop() {
                 }
             }
 
-            // 4. Draw Content (Pokemon or Berry)
+            // 4. DIBUJAR CONTENIDO (DITTO, POKEMON O BAYA)
             ctx.save();
             ctx.translate(drawX + TILE_SIZE / 2, drawY + TILE_SIZE / 2);
             ctx.rotate(tile.rotation || 0);
 
             if (tile.isBerry) {
-                // Background glow for berries to highlight their color-type
                 ctx.beginPath();
                 ctx.arc(0, 0, displaySize / 2.5, 0, Math.PI * 2);
                 ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
@@ -920,9 +1024,21 @@ function renderLoop() {
 
                 const berryImg = BERRY_SPRITES[tile.berryType];
                 if (berryImg) {
-                    ctx.imageRendering = "pixelated"; // Keep that sharp Pokemon look
+                    ctx.imageRendering = "pixelated";
                     ctx.drawImage(berryImg, -displaySize/2.5, -displaySize/2.5, displaySize/1.25, displaySize/1.25);
                 }
+            } else if (tile.isDitto) {
+                // Renderizado especial de Ditto con ID 132
+                const imgSource = tile.isShiny 
+                    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/132.png`
+                    : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png`;
+                
+                // Usamos un objeto Image temporal o pre-cargado
+                const dittoImg = new Image();
+                dittoImg.src = imgSource; 
+                
+                ctx.imageRendering = "pixelated";
+                ctx.drawImage(dittoImg, -displaySize/2, -displaySize/2, displaySize, displaySize);
             } else {
                 const pData = pokemonData[tile.id];
                 if (pData) {
@@ -932,14 +1048,14 @@ function renderLoop() {
             }
             ctx.restore();
 
-            // 5. Random Shiny Sparkles
+            // 5. DESTELLOS SHINY ALEATORIOS
             if(tile.isShiny && Math.random() < 0.05){
                 spawnSparkle({ ...tile, r, c });
             }
         }
     }
 
-    // Draw all active sparkles
+    // Dibujar partículas de destellos
     for(let i = sparkles.length - 1; i >= 0; i--){
         const s = sparkles[i];
         ctx.beginPath();
@@ -1083,9 +1199,12 @@ async function processMatches() {
 
             if (!tile.isMatch) {
                 tile.isMatch = true;
+                let tileScore = 100; // base
+        if (tile.isShiny) tileScore = 200; // + puntos extra para Shiny
+        score += tileScore * scoreMultiplier;
 
                 // Capture if shiny
-                if (tile.isShiny) {
+                if (tile.isShiny && !tile.isDitto) {
                     captureShiny(tile.id);
                     const pData = pokemonData[tile.id];
                     if (pData.cry && !isMuted) {
@@ -1122,9 +1241,10 @@ async function processMatches() {
                 }
             }
             for (let r = 0; r < empty; r++) {
-                board[r][c] = createTile(Math.floor(Math.random() * 6), true);
-                board[r][c].yOffset = -empty * TILE_SIZE;
-            }
+    // Aquí es donde se crean las piezas nuevas que caen
+    board[r][c] = createTile(Math.floor(Math.random() * 6), true);
+    board[r][c].yOffset = -empty * TILE_SIZE;
+}
         }
 
         await animateFalling();
@@ -1234,27 +1354,45 @@ async function animateFalling() {
 function findMatches() {
     let matches = [];
     
+    const areCompatible = (t1, t2) => {
+        if (t1.isMatch || t2.isMatch) return false;
+        if (t1.isDitto || t2.isDitto) return true; // Ditto matchea con todo
+        return t1.id === t2.id;
+    };
+
     // Horizontal
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE - 2; c++) {
             let t1 = board[r][c], t2 = board[r][c+1], t3 = board[r][c+2];
-            // Check if IDs match AND ensure they aren't ALL berries
-            if (t1.id === t2.id && t2.id === t3.id) {
-                // Optional: Prevent a match of 3 berries only
-                if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
-                    matches.push({r, c}, {r, c:c+1}, {r, c:c+2});
+            
+            // Lógica: Si t1 y t2 son compatibles, y t2 y t3 son compatibles...
+            // Pero necesitamos asegurar que al menos uno NO sea Ditto para saber el color,
+            // o que si todos son Ditto, cuenten como match.
+            if (areCompatible(t1, t2) && areCompatible(t2, t3)) {
+                // Caso especial: si hay Dittos, confirmar que los colores reales presentes coincidan
+                let nonDittoTiles = [t1, t2, t3].filter(t => !t.isDitto);
+                let colorsPresent = new Set(nonDittoTiles.map(t => t.id));
+                
+                if (colorsPresent.size <= 1) { // 0 colores (todo ditto) o 1 color dominante
+                    if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
+                        matches.push({r, c}, {r, c:c+1}, {r, c:c+2});
+                    }
                 }
             }
         }
     }
     
-    // Vertical
+    // Vertical (misma lógica aplicada)
     for (let c = 0; c < GRID_SIZE; c++) {
         for (let r = 0; r < GRID_SIZE - 2; r++) {
             let t1 = board[r][c], t2 = board[r+1][c], t3 = board[r+2][c];
-            if (t1.id === t2.id && t2.id === t3.id) {
-                if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
-                    matches.push({r, c}, {r:r+1, c}, {r:r+2, c});
+            if (areCompatible(t1, t2) && areCompatible(t2, t3)) {
+                let nonDittoTiles = [t1, t2, t3].filter(t => !t.isDitto);
+                let colorsPresent = new Set(nonDittoTiles.map(t => t.id));
+                if (colorsPresent.size <= 1) {
+                    if (!(t1.isBerry && t2.isBerry && t3.isBerry)) {
+                        matches.push({r, c}, {r:r+1, c}, {r:r+2, c});
+                    }
                 }
             }
         }
@@ -1284,8 +1422,18 @@ function checkPotential(r1, c1, r2, c2) {
 }
 
 
-function captureShiny(tileId) {
-    const pInfo = pokemonData[tileId];
+function captureShiny(tileId, isDitto = false) {
+    let pInfo;
+    if (isDitto) {
+        // Datos genéricos para Ditto Shiny si quieres que aparezca
+        pInfo = { 
+            id: 132, 
+            name: 'Ditto', 
+            images: { shiny: { src: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/132.png' } } 
+        };
+    } else {
+        pInfo = pokemonData[tileId];
+    }
     if (!caughtShinies[pInfo.id]) { 
         caughtShinies[pInfo.id] = pInfo.images.shiny.src; 
         localStorage.setItem('shinyDex', JSON.stringify(caughtShinies)); 
@@ -1357,27 +1505,23 @@ function openDex() {
 function createDexSlot(id, regionalOrder) {
     const slot = document.createElement('div');
     slot.className = 'dex-slot';
+    
+    // Get the visual ID (Crowned/Hero/Core)
+    const visualId = getEffectiveId(id);
 
     const numberTag = document.createElement('span');
     numberTag.className = 'dex-number';
-
-    // Lógica de la etiqueta
-    if (regionalOrder) {
-        // Si regionalOrder tiene un número (es decir, es regional)
-        numberTag.innerText = `R-${regionalOrder}`;
-    } else {
-        // Si no, es un Pokémon normal
-        numberTag.innerText = id;
-    }
+    numberTag.innerText = regionalOrder ? `R-${regionalOrder}` : id;
 
     const img = document.createElement('img');
     img.className = 'dex-img';
 
-    // Usamos el id original para la imagen de la PokeAPI
     if (caughtShinies[id]) {
-        img.src = caughtShinies[id];
+        // Use the Shiny Sprite of the Hero/Crowned form
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${visualId}.png`;
     } else {
-        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+        // Silhouette: Use the normal sprite of the Hero/Crowned form
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${visualId}.png`;
         slot.classList.add('not-caught');
     }
 
@@ -1503,12 +1647,15 @@ function openBerryGuide() {
 
     document.getElementById('berry-modal').style.display = 'flex';
 }
-
+function openTutorial() {
+    tutorialModal.style.display = 'flex';
+}
 // Update your closeModals to include this new one
 function closeModals() {
     document.getElementById('dex-modal').style.display = 'none';
     document.getElementById('who-modal').style.display = 'none';
     document.getElementById('berry-modal').style.display = 'none';
+    document.getElementById('tutorial-modal').style.display = 'none';
 }
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
