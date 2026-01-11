@@ -197,6 +197,10 @@
     cursor: crosshair;
     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
+.score-container, #status, .region-title {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    color: white;
+}
 
         #shiny-tracker {
             margin-top: 10px;
@@ -396,6 +400,24 @@ hr {
     margin-top: 10px;
 }
 
+/* Fondos por Región */
+.bg-default { background: linear-gradient(135deg, #2c3e50, #000000); }
+.bg-kanto   { background: linear-gradient(135deg, #560000, #00004e); } /* Rojo, Azul, Amarillo */
+.bg-johto   { background: linear-gradient(135deg, #4c3f13, #403f41); }         /* Oro, Plata */
+.bg-hoenn   { background: linear-gradient(135deg, #430000, #051a3b, #122f1c); } /* Rubí, Zafiro, Esmeralda */
+.bg-sinnoh  { background: linear-gradient(135deg, #42565a, #482243); }         /* Diamante, Perla */
+.bg-unova   { background: linear-gradient(135deg, #565656, #000000); }         /* Blanco, Negro */
+.bg-kalos   { background: linear-gradient(135deg, #00003b, #350708); }         /* Azul Oscuro, Granate (X/Y) */
+.bg-alola   { background: linear-gradient(135deg, #593100, #220437); }         /* Naranja, Morado (Sol/Luna) */
+.bg-galar   { background: linear-gradient(135deg, #062f42, #460018); } /* Cian, Amarillo, Magenta */
+.bg-paldea  { background: linear-gradient(135deg, #410900, #300038); }         /* Escarlata, Púrpura */
+
+/* Asegúrate de que el fondo cubra toda la pantalla */
+#game-screen, body {
+    transition: background 0.5s ease; /* Transición suave al cambiar */
+    min-height: 100vh;
+}
+
     </style>
 </head>
 <body>
@@ -513,7 +535,7 @@ hr {
             <button class="region-btn" onclick="selectRegion('unova')">Unova</button>
             <button class="region-btn" onclick="selectRegion('kalos')">Kalos</button>
             <button class="region-btn" onclick="selectRegion('alola')">Alola</button>
-            <button class="region-btn" onclick="selectRegion('galar')">Galar/Hisui</button>
+            <button class="region-btn" onclick="selectRegion('galar')">Galar & Hisui</button>
             <button class="region-btn" onclick="selectRegion('paldea')">Paldea</button>
             
             <button class="region-btn" onclick="selectRegion('all')" style="grid-column: span 3; background: var(--accent); color: #000; font-weight: bold; margin-top: 5px;">ANY</button>
@@ -563,6 +585,8 @@ const whoGrid = document.getElementById('who-grid');
 const dexModal = document.getElementById('dex-modal');
 const dexGrid = document.getElementById('dex-grid');
 const dexCount = document.getElementById('dex-count');
+let lumInterval = null;
+let lumActive = false;
 let multiplierInterval = null;
 const SHINY_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 SHINY_SOUND.volume = 1;
@@ -571,7 +595,7 @@ POP_SOUND_SOFT.volume = 0.7;
 let scoreMultiplier = 1
 let isMuted = false;
 const GRID_SIZE = 7; 
-const SHINY_CHANCE = 100;
+let SHINY_CHANCE = 100;
 let TILE_SIZE = 0;
 let board = [];
 let score = 0;
@@ -617,6 +641,7 @@ const regionRanges = {
 async function selectRegion(regionKey) {
     // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
     resetSessionUI(); 
+    updateBackground(regionKey);
     gameOver = false; // Aseguramos que el estado de juego esté activo
     
     // 1. Limpiar datos de lógica previos
@@ -678,10 +703,21 @@ async function selectRegion(regionKey) {
         }
     }
 }
+
+function updateBackground(region) {
+    const body = document.body;
+    // Eliminamos cualquier clase de fondo previa
+    body.className = body.className.replace(/\bbg-\S+/g, '');
+    
+    // Añadimos la nueva clase según la región
+    const bgClass = `bg-${region}`;
+    body.classList.add(bgClass);
+}
+
 // Configuración de entrada y prevención de scroll
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
-const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS', 'ASPEAR'];
+const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS', 'ASPEAR', 'LUM'];
 const BERRY_SPRITES = {}
 const BERRY_LIST = {
     'CHERI': 'cheri-berry',
@@ -690,7 +726,8 @@ const BERRY_LIST = {
     'ORAN': 'oran-berry',
     'RAWST': 'rawst-berry',
     'SITRUS': 'sitrus-berry',
-    'ASPEAR': 'aspear-berry' // <-- nueva berry
+    'ASPEAR': 'aspear-berry',
+    'LUM': 'lum-berry'
 };
 
 let allPokemonList = [];
@@ -803,7 +840,59 @@ function createTile(r, c, allowSound = false) {
     };
 }
 
+function createLumTimer() {
+    if (document.getElementById('lum-timer')) return; // no duplicar
 
+    const lumEl = document.createElement('div');
+    lumEl.id = 'lum-timer';
+    lumEl.style.position = 'absolute';
+    lumEl.style.top = '10px';
+    lumEl.style.right = '10px';
+    lumEl.style.padding = '10px';
+    lumEl.style.background = 'rgba(0,0,0,0.4)';
+    lumEl.style.borderRadius = '8px';
+    lumEl.style.color = 'white';
+    lumEl.style.fontFamily = 'monospace';
+    lumEl.style.fontWeight = 'bold';
+    lumEl.style.zIndex = 9999;
+    lumEl.innerHTML = '✨INCREASED SHINY BOOST: <span id="lum-count">30</span>s✨';
+    lumEl.style.display = 'none';
+    document.body.appendChild(lumEl);
+}
+
+// Activar Lum Berry
+function activateLumBerry() {
+    createLumTimer();
+    const lumEl = document.getElementById('lum-timer');
+    const countEl = document.getElementById('lum-count');
+
+    SHINY_CHANCE = 5; 
+
+    lumEl.style.display = 'block';
+    lumActive = true;
+
+    let timeLeft = 10;
+    countEl.innerText = timeLeft;
+
+    statusEl.innerText = '✨ SHINY BOOST ACTIVE! ✨';
+    statusEl.classList.add('shiny-alert');
+
+    if (lumInterval) clearInterval(lumInterval);
+
+    lumInterval = setInterval(() => {
+        timeLeft--;
+        countEl.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(lumInterval);
+            lumInterval = null;
+            SHINY_CHANCE = 100;
+            lumEl.style.display = 'none';
+            lumActive = false;
+            updateStatusText();
+        }
+    }, 1000);
+}
 async function triggerBerryAbility(berry, r, c) {
     let tilesToDestroy = [];
 
@@ -1527,6 +1616,9 @@ function getBerryPattern(berry, r, c) {
             for (let i = 0; i < GRID_SIZE; i++) pattern.push({ r: i, c: c }); // columna
             for (let j = 0; j < GRID_SIZE; j++) pattern.push({ r: r, c: j }); // fila
             break;
+            case 'LUM': // Increase shiny chance
+    activateLumBerry();
+    break;
     }
     return pattern;
 }
@@ -1920,7 +2012,8 @@ function openBerryGuide() {
         'ORAN': 'Explodes in a 3x3 SQUARE area.',
         'RAWST': 'Clears tiles in an X-SHAPED diagonal.',
         'SITRUS': 'DOUBLE POINTS for 60 seconds!',
-        'ASPEAR': 'Clears the entire ROW and COLUMN.'
+        'ASPEAR': 'Clears the entire ROW and COLUMN.',
+        'LUM': 'Increases SHINY CHANCE for 30 seconds!'
     };
 
     BERRY_TYPES.forEach(type => {
