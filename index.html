@@ -412,7 +412,7 @@ hr {
     <h1 class="menu-title">Shiny Match</h1>
     <p style="font-size: 11px; margin-bottom: 20px; font-weight: 600; color: #64748b;">SHINY ODDS: 1/100</p>
     <div class="btn-group">
-        <button class="menu-btn mode-play" onclick="startGame()">Start Hunt</button>
+        <button class="menu-btn mode-play" onclick="openRegionMenu()">Start Hunt</button>
         <button id="continue-btn" class="menu-btn mode-play" style="background: #10b981; display: none;" onclick="continueGame()">Continue Hunting</button>
         
         <button class="menu-btn" style="background: #6366f1;" onclick="openTutorial()">How to Play</button>
@@ -489,6 +489,45 @@ hr {
         <button class="menu-btn" style="background: #ef4444; width: 100%; margin-top: 15px;" onclick="closeModals()">Got it!</button>
     </div>
 </div>
+<div id="region-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 350px;">
+        <h3 style="color: var(--accent); margin-top: 0;">SELECT REGION</h3>
+        <div id="region-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+            <button class="region-btn" onclick="selectRegion('kanto')">Kanto</button>
+            <button class="region-btn" onclick="selectRegion('johto')">Johto</button>
+            <button class="region-btn" onclick="selectRegion('hoenn')">Hoenn</button>
+            <button class="region-btn" onclick="selectRegion('sinnoh')">Sinnoh</button>
+            <button class="region-btn" onclick="selectRegion('unova')">Unova</button>
+            <button class="region-btn" onclick="selectRegion('kalos')">Kalos</button>
+            <button class="region-btn" onclick="selectRegion('alola')">Alola</button>
+            <button class="region-btn" onclick="selectRegion('galar')">Galar/Hisui</button>
+            <button class="region-btn" onclick="selectRegion('paldea')">Paldea</button>
+            
+            <button class="region-btn" onclick="selectRegion('all')" style="grid-column: span 3; background: var(--accent); color: #000; font-weight: bold; margin-top: 5px;">ANY</button>
+        </div>
+        <button class="menu-btn exit-link-btn" onclick="closeModals()">CANCEL</button>
+    </div>
+</div>
+
+<style>
+    .region-btn {
+        background: #334155;
+        border: 2px solid #475569;
+        color: white;
+        padding: 15px 5px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+    }
+    .region-btn:hover {
+        background: var(--accent);
+        border-color: white;
+        transform: scale(1.05);
+    }
+</style>
 
 <script>
     const tutorialModal = document.getElementById('tutorial-modal');
@@ -538,7 +577,78 @@ const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10
 const DITTO_CRY = new Audio('https://raw.githubusercontent.com/PokeAPI/stock-pokemon-cries/master/cries/pokemon/latest/132.ogg');
 DITTO_CRY.volume = 0.5; // Adjust volume as needed
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
+const regionRanges = {
+    'kanto': { start: 1, end: 151 },
+    'johto': { start: 152, end: 251 },
+    'hoenn': { start: 252, end: 386 },
+    'sinnoh': { start: 387, end: 493 },
+    'unova': { start: 494, end: 649 },
+    'kalos': { start: 650, end: 721 },
+    'alola': { 
+        start: 722, 
+        end: 809, 
+        extras: REGIONAL_IDS.filter(id => id >= 10091 && id <= 10115) 
+    },
+    'galar': { 
+        start: 810, 
+        end: 905, 
+        extras: REGIONAL_IDS.filter(id => (id >= 10161 && id <= 10180) || (id >= 10229 && id <= 10232)) 
+    },
+    'paldea': { 
+        start: 906, 
+        end: 1025, 
+        extras: REGIONAL_IDS.filter(id => id >= 10243) 
+    }
+};
 
+async function selectRegion(regionKey) {
+    // 1. Limpiar datos previos
+    pokemonData = []; 
+    pokemonColors = [];
+
+    if (regionKey === 'all') {
+        // CASO ESPECIAL: Todas las regiones y todas las formas
+        const baseIds = Array.from({length: 1025}, (_, i) => i + 1);
+        currentRegionIds = [...baseIds, ...REGIONAL_IDS];
+    } else {
+        // CASO NORMAL: Región específica
+        const range = regionRanges[regionKey];
+        if (!range) return;
+
+        const baseIds = Array.from({length: range.end - range.start + 1}, (_, i) => i + range.start);
+        const extraIds = range.extras || [];
+        currentRegionIds = [...baseIds, ...extraIds];
+    }
+
+    // 2. UI: Mostrar carga
+    closeModals();
+    document.getElementById('main-menu').style.display = 'none';
+    const loadingMsg = document.getElementById('loading-msg');
+    if (loadingMsg) loadingMsg.style.display = 'flex';
+
+    // 3. Descargar los 6 Pokémon (fetchGameData ya usa currentRegionIds)
+    await Promise.all([
+        fetchGameData(),
+        preloadBerries()
+    ]);
+
+    if (pokemonData.length < 6) {
+        alert("Error loading Pokémon data.");
+        resetToMenu();
+        return;
+    }
+
+    // 4. Iniciar juego
+    if (loadingMsg) loadingMsg.style.display = 'none';
+    document.getElementById('game-screen').style.display = 'flex';
+    
+    initBoard(); 
+    
+    if (!gameInitialized) {
+        gameInitialized = true;
+        requestAnimationFrame(renderLoop);
+    }
+}
 // Configuración de entrada y prevención de scroll
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
@@ -552,10 +662,22 @@ const BERRY_LIST = {
     'RAWST': 'rawst-berry',
     'SITRUS': 'sitrus-berry'
 };
+let allPokemonList = [];
 function playDittoCry() {
     if (!isMuted) {
         DITTO_CRY.currentTime = 0;
         DITTO_CRY.play().catch(() => {});
+    }
+}
+function openRegionMenu() {
+    // Primero cerramos cualquier otro modal abierto por seguridad
+    closeModals();
+    
+    const regionModal = document.getElementById('region-modal');
+    if (regionModal) {
+        regionModal.style.display = 'flex';
+    } else {
+        console.error("Error: No se encontró el elemento 'region-modal' en el HTML.");
     }
 }
 function activateSitrusTimer() {
@@ -591,11 +713,22 @@ function activateSitrusTimer() {
 
 // Add this to your startGame or an init function to preload them
 async function preloadBerries() {
+    // Si ya están cargadas, no repetimos el proceso
+    if (Object.keys(BERRY_SPRITES).length === BERRY_TYPES.length) return;
+
     for (const [key, fileName] of Object.entries(BERRY_LIST)) {
+        if (BERRY_SPRITES[key]) continue; // Saltar si ya existe
+        
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${fileName}.png`;
-        await new Promise(r => img.onload = r);
+        await new Promise(r => {
+            img.onload = r;
+            img.onerror = () => {
+                console.warn(`Error loading berry: ${fileName}`);
+                r(); // Continuamos aunque falle una
+            };
+        });
         BERRY_SPRITES[key] = img;
     }
 }
@@ -615,8 +748,8 @@ function getRandomPokemonId() {
     return parseInt(randKey);
 }
 function createTile(r, c, allowSound = false) {
-    let id = getRandomPokemonId();
-    id = getEffectiveId(id);
+    // IMPORTANTE: Elegimos un índice de 0 a 5 (los 6 Pokémon descargados de la región)
+    let typeIndex = Math.floor(Math.random() * pokemonData.length);
 
     const dittoCount = board.flat().filter(t => t && t.isDitto).length;
     const isBerry = Math.random() < 0.05; 
@@ -624,7 +757,8 @@ function createTile(r, c, allowSound = false) {
     const isShiny = !isBerry && Math.floor(Math.random() * SHINY_CHANCE) === 0;
 
     return { 
-        id: isDitto ? -1 : id, 
+        // Usamos el typeIndex para saber qué Pokémon de pokemonData dibujar
+        id: isDitto ? -1 : typeIndex, 
         isDitto,
         isShiny, 
         isBerry,
@@ -634,7 +768,6 @@ function createTile(r, c, allowSound = false) {
         isMatch: false, 
         scale: 1, 
         rotation: 0,
-        // añadimos un flag para detectar cuando se pone en pantalla
         hasSpawned: false
     };
 }
@@ -865,34 +998,59 @@ async function continueGame() {
 
 async function fetchGameData() {
     try {
+        pokemonData = [];
+        pokemonColors = [];
         const selectedIds = new Set();
-        const ALL_IDS = [...Array.from({length: 1025}, (_, i) => i + 1), ...REGIONAL_IDS];
-        const missingShinyIds = ALL_IDS.filter(id => !caughtShinies[id]);
+        const missingShinyIds = currentRegionIds.filter(id => !caughtShinies[id]);
 
         while (selectedIds.size < 6) {
-            let id = (missingShinyIds.length > 0 && Math.random() < 0.7) 
-                ? missingShinyIds.splice(Math.floor(Math.random() * missingShinyIds.length), 1)[0]
-                : ALL_IDS[Math.floor(Math.random() * ALL_IDS.length)];
+            let id;
+            if (missingShinyIds.length > 0 && Math.random() < 0.7) {
+                const randomIndex = Math.floor(Math.random() * missingShinyIds.length);
+                id = missingShinyIds.splice(randomIndex, 1)[0];
+            } else {
+                id = currentRegionIds[Math.floor(Math.random() * currentRegionIds.length)];
+            }
             selectedIds.add(id);
         }
 
         const idArray = Array.from(selectedIds);
-        for(let i=0; i < 6; i++) {
-            let fetchId = idArray[i];
+
+        for (let i = 0; i < 6; i++) {
+            let fetchId = getEffectiveId(idArray[i]);
             const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${fetchId}`);
             const data = await res.json();
+            
             const normal = new Image();
             const shiny = new Image();
-            const pName = data.name.replace(/\s+/g, '-');
             normal.crossOrigin = "anonymous";
             shiny.crossOrigin = "anonymous";
-            normal.src = data.sprites.front_default || data.sprites.other['official-artwork'].front_default;
-            shiny.src = data.sprites.front_shiny || data.sprites.other['official-artwork'].front_shiny;
-            await Promise.all([new Promise(r => normal.onload = r), new Promise(r => shiny.onload = r)]);
-            pokemonData.push({ name: pName.charAt(0).toUpperCase() + pName.slice(1), images: { normal, shiny }, cry: data.cries ? data.cries.latest : null, id: data.id });
+            
+            // --- CAMBIO AQUÍ: Volvemos a los sprites frontales estándar ---
+            // Usamos sprites.front_default para el look clásico de píxel
+            normal.src = data.sprites.front_default;
+            shiny.src = data.sprites.front_shiny;
+            
+            await Promise.all([
+                new Promise(r => normal.onload = r), 
+                new Promise(r => shiny.onload = r)
+            ]);
+
+            let rawName = data.name.split('-')[0];
+            const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+            pokemonData.push({ 
+                name: cleanName, 
+                images: { normal, shiny }, 
+                cry: data.cries ? data.cries.latest : null, 
+                id: data.id 
+            });
+
             pokemonColors.push(colors[i]);
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { 
+        console.error("Error crítico en fetchGameData:", e);
+    }
 }
 
 function initBoard() {
@@ -1036,12 +1194,20 @@ function renderLoop() {
                 ctx.imageRendering = "pixelated";
                 ctx.drawImage(dittoImg, -displaySize/2, -displaySize/2, displaySize, displaySize);
             } else {
-                const pData = pokemonData[tile.id];
-                if (pData) {
-                    const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
-                    ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
-                }
-            }
+    const pData = pokemonData[tile.id];
+    if (pData && pData.images) { // Validación de seguridad
+        const img = tile.isShiny ? pData.images.shiny : pData.images.normal;
+        if (img.complete) { // Solo dibujar si la imagen está cargada
+            ctx.drawImage(img, -displaySize/2, -displaySize/2, displaySize, displaySize);
+        }
+    } else {
+        // Si no hay imagen aún, dibuja un círculo de color temporal
+        ctx.beginPath();
+        ctx.arc(0, 0, displaySize/4, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fill();
+    }
+}
             ctx.restore();
 
             // 5. DESTELLOS SHINY ALEATORIOS
@@ -1664,7 +1830,10 @@ function closeModals() {
     document.getElementById('who-modal').style.display = 'none';
     document.getElementById('berry-modal').style.display = 'none';
     document.getElementById('tutorial-modal').style.display = 'none';
+    const regionModal = document.getElementById('region-modal');
+    if (regionModal) regionModal.style.display = 'none';
 }
+
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
