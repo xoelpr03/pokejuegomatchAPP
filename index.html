@@ -553,6 +553,7 @@ hr {
     </div>
 </div>
 
+
 <style>
     .region-btn {
         background: #334155;
@@ -574,6 +575,10 @@ hr {
 </style>
 
 <script>
+    document.getElementById('startButton').addEventListener('click', () => {
+    bgm.play().catch(err => console.log('No se pudo reproducir el audio:', err));
+});
+    let bgm = null;
     const tutorialModal = document.getElementById('tutorial-modal');
     const DITTO_CHANCE = 0.01;
     const DITTO_IMAGE = new Image(); DITTO_IMAGE.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png';
@@ -623,6 +628,28 @@ const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10
 const DITTO_CRY = new Audio('https://raw.githubusercontent.com/PokeAPI/stock-pokemon-cries/master/cries/pokemon/latest/132.ogg');
 DITTO_CRY.volume = 0.5; // Adjust volume as needed
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
+const RANDOM_MUSIC_POOL = [
+    'pokejuegomatch/audio/accumula.mp3',
+    'pokejuegomatch/audio/autumn.mp3',
+    'pokejuegomatch/audio/calyrex.mp3',
+    'pokejuegomatch/audio/celadon.mp3',
+    'pokejuegomatch/audio/ecruteak.mp3',
+    'pokejuegomatch/audio/hauoli.mp3',
+    'pokejuegomatch/audio/hooh.mp3',
+    'pokejuegomatch/audio/jacinthe.mp3',
+    'pokejuegomatch/audio/jubilife.mp3',
+    'pokejuegomatch/audio/lake.mp3',
+    'pokejuegomatch/audio/levincia.mp3',
+    'pokejuegomatch/audio/lugia.mp3',
+    'pokejuegomatch/audio/lumiose.mp3',
+    'pokejuegomatch/audio/mauville.mp3',
+    'pokejuegomatch/audio/relic.mp3',
+    'pokejuegomatch/audio/route.mp3',
+    'pokejuegomatch/audio/sonia.mp3',
+    'pokejuegomatch/audio/stow.mp3',
+    'pokejuegomatch/audio/treasure.mp3',
+    'pokejuegomatch/audio/wild.mp3'
+];
 const regionRanges = {
     'kanto': { start: 1, end: 151 },
     'johto': { start: 152, end: 251 },
@@ -651,6 +678,7 @@ async function selectRegion(regionKey) {
     // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
     resetSessionUI(); 
     updateBackground(regionKey);
+    playRandomMusic();
     gameOver = false; // Aseguramos que el estado de juego esté activo
     
     // 1. Limpiar datos de lógica previos
@@ -1076,6 +1104,13 @@ function saveGameState() {
 function quitAndSave() {
     saveGameState();
     resetToMenu();
+    stopMusic(); // Llamamos a la función para parar la música
+}
+
+function stopMusic() {
+    if (!bgm) return;
+    bgm.pause();
+    bgm.currentTime = 0;
 }
 
 function getEffectiveId(id) {
@@ -1916,7 +1951,15 @@ function closeModals() {
     dexModal.style.display = 'none';
     whoModal.style.display = 'none';
 }
-function toggleMute() { isMuted = !isMuted; muteBtn.innerText = isMuted ? '🔇' : '🔊'; }
+function toggleMute() {
+    isMuted = !isMuted;
+
+    if (bgm) {
+        bgm.volume = isMuted ? 0 : 0.7;
+    }
+
+    muteBtn.innerText = isMuted ? '🔇' : '🔊';
+}
 
 function spawnSparkle(tile) {
     const drawX = tile.c * TILE_SIZE + TILE_SIZE/2;
@@ -2043,7 +2086,19 @@ function closeModals() {
     const regionModal = document.getElementById('region-modal');
     if (regionModal) regionModal.style.display = 'none';
 }
+function playRandomMusic() {
+    if (bgm) {
+        bgm.pause();
+        bgm.currentTime = 0;
+    }
 
+    const track = RANDOM_MUSIC_POOL[Math.floor(Math.random() * RANDOM_MUSIC_POOL.length)];
+    bgm = new Audio(track);
+    bgm.loop = true;
+    bgm.volume = isMuted ? 0 : 0.7;
+
+    bgm.play().catch(() => {});
+}
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
