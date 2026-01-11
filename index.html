@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -245,10 +246,15 @@
             border-top: 1px solid #e2e8f0; padding-top: 12px; width: 180px; margin: 25px auto 0;
         }
 
-        .shiny-alert { animation: rainbow 1.5s infinite; }
-        @keyframes rainbow {
-            0% { color: #f87171; } 25% { color: #facc15; } 50% { color: #34d399; } 75% { color: #60a5fa; } 100% { color: #f87171; }
-        }
+        .shiny-alert {
+    animation: shinyBlink 0.6s infinite alternate;
+    text-shadow: 0 0 10px #fff, 0 0 20px #60a5fa;
+}
+
+@keyframes shinyBlink {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0.7; transform: scale(1.05); }
+}
 
         #who-grid {
     display: grid;
@@ -426,7 +432,111 @@ hr {
     transition: background 0.5s ease; /* Transición suave al cambiar */
     min-height: 100vh;
 }
+.combo-multiplier {
+    position: absolute;
+    color: yellow; /* O un color brillante para el combo */
+    font-size: 2.5em;
+    font-weight: bold;
+    text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    pointer-events: none; /* Ignorar clics */
+    opacity: 0; /* Empieza invisible */
+    animation: comboFadeInUp 1s forwards; /* Animación de subida y desvanecimiento */
+    z-index: 100;
+}
 
+@keyframes comboFadeInUp {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, 0px); /* Centrado horizontal, posición inicial */
+    }
+    30% {
+        opacity: 1;
+        transform: translate(-50%, -20px); /* Sube un poco */
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50px); /* Sube más y desaparece */
+    }
+}
+
+/* Estilo del Fantasmita de Combo */
+.combo-ghost {
+    position: fixed; /* Importante para que use las coordenadas X e Y de la pantalla */
+    z-index: 2000;
+    font-family: inherit; 
+    font-size: 3rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 2px 2px 0px rgba(0,0,0,0.3);
+    pointer-events: none;
+    user-select: none;
+    transform: translate(-50%, -50%);
+    animation: ghostFloat 1.2s ease-out forwards, ghostSway 0.4s ease-in-out infinite alternate;
+}
+
+/* El fantasmita de x5 es más grande y brillante */
+.combo-ghost.max-ghost {
+    color: rgba(255, 215, 0, 0.9); /* Dorado fantasmal */
+    font-size: 4.5rem;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+/* Estilo base del recuadro (igual para ambos) */
+.timer-box {
+    padding: 5px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 900;
+    text-align: center;
+    border: 2px solid;
+    min-width: 180px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.7); /* Fondo oscuro para que resalte el texto */
+}
+
+/* Identidad Sitrus (Naranja/Oro) */
+.sitrus-style {
+    color: #fbbf24;
+    border-color: #fbbf24;
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
+/* Identidad Lum (Plata/Shiny) */
+.lum-style {
+    color: #e2e8f0; /* Gris muy claro / Blanco azulado */
+    border-color: #94a3b8;
+    box-shadow: 0 0 10px rgba(226, 232, 240, 0.4);
+    animation: shinyGlow 1.5s infinite alternate;
+}
+
+@keyframes shinyGlow {
+    from { box-shadow: 0 0 5px rgba(226, 232, 240, 0.4); }
+    to { box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); }
+}
+
+/* Animación de subida y desaparición */
+@keyframes ghostFloat {
+    0% {
+        opacity: 0;
+        margin-top: 20px;
+        scale: 0.5;
+    }
+    20% {
+        opacity: 1;
+        scale: 1.2;
+    }
+    100% {
+        opacity: 0;
+        margin-top: -150px; /* Sube hacia el cielo */
+        scale: 1;
+    }
+}
+
+/* Animación de balanceo lateral (efecto flotante) */
+@keyframes ghostSway {
+    from { transform: translate(-60%, -50%) rotate(-5deg); }
+    to { transform: translate(-40%, -50%) rotate(5deg); }
+}
     </style>
 </head>
 <body>
@@ -506,7 +616,10 @@ hr {
 
         <canvas id="gameCanvas"></canvas>
         <div id="multiplier-timer" style="display: none; font-size: 14px; font-weight: 900; color: #fbbf24; margin-bottom: 5px;">
-        ✨ 2X POINTS: <span id="timer-count">60</span>s
+        ✨ x2 POINTS: <span id="timer-count">60</span>s
+    </div>
+    <div id="lum-timer" class="timer-box lum-style" style="display: none;">
+        ✨ SHINY BOOST: <span id="lum-count">10</span>s
     </div>
         <div id="status">SWIPE TO MATCH</div>
 
@@ -599,6 +712,7 @@ const dexCount = document.getElementById('dex-count');
 let lumInterval = null;
 let lumActive = false;
 let multiplierInterval = null;
+let currentCombo = 0;
 const SHINY_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 SHINY_SOUND.volume = 1;
 const POP_SOUND_SOFT = new Audio('https://freesound.org/data/previews/411/411639_5121236-lq.mp3');
@@ -648,23 +762,27 @@ const musicFiles = [
   'audio/wild.mp3'
 ];
 const regionRanges = {
-    'kanto': { start: 1, end: 151 },
-    'johto': { start: 152, end: 251 },
-    'hoenn': { start: 252, end: 386 },
+    'kanto':  { start: 1, end: 151 },
+    'johto':  { start: 152, end: 251 },
+    'hoenn':  { start: 252, end: 386 },
     'sinnoh': { start: 387, end: 493 },
-    'unova': { start: 494, end: 649 },
-    'kalos': { start: 650, end: 721 },
-    'alola': { 
+    'unova':  { start: 494, end: 649 },
+    'kalos':  { start: 650, end: 721 },
+    'alola':  { 
         start: 722, 
         end: 809, 
         extras: REGIONAL_IDS.filter(id => id >= 10091 && id <= 10115) 
     },
-    'galar': { 
+    'galar':  { 
+        // Abarca desde Grookey (810) hasta Enamorus (905)
         start: 810, 
         end: 905, 
-        extras: REGIONAL_IDS.filter(id => (id >= 10161 && id <= 10180) || (id >= 10229 && id <= 10232)) 
+        // Incluye formas de Galar (10161-10180), formas de Hisui (10223-10242) 
+        // y los extras de Galar (10229-10232)
+        extras: REGIONAL_IDS.filter(id => (id >= 10161 && id <= 10180) || (id >= 10223 && id <= 10242) || (id >= 10229 && id <= 10232)) 
     },
     'paldea': { 
+        // Paldea empieza estrictamente en Sprigatito (906)
         start: 906, 
         end: 1025, 
         extras: REGIONAL_IDS.filter(id => id >= 10243) 
@@ -789,7 +907,7 @@ function activateSitrusTimer() {
     // 1. Show the timer and update state
     scoreMultiplier = 2;
     timerEl.style.display = 'block';
-    statusEl.innerText = "✨ 2X POINTS ACTIVE! ✨";
+    statusEl.innerText = "✨ x2 POINTS ACTIVE! ✨";
     
     let timeLeft = 60;
     countEl.innerText = timeLeft;
@@ -895,20 +1013,22 @@ function createLumTimer() {
 
 // Activar Lum Berry
 function activateLumBerry() {
-    createLumTimer();
     const lumEl = document.getElementById('lum-timer');
     const countEl = document.getElementById('lum-count');
 
     SHINY_CHANCE = 5; 
-
-    lumEl.style.display = 'block';
     lumActive = true;
+
+    // Mostrar el recuadro
+    lumEl.style.display = 'block';
+    
+    if (typeof statusEl !== 'undefined') {
+        statusEl.innerText = '✨ SHINY BOOST ACTIVE! ✨';
+        statusEl.classList.add('shiny-alert');
+    }
 
     let timeLeft = 10;
     countEl.innerText = timeLeft;
-
-    statusEl.innerText = '✨ SHINY BOOST ACTIVE! ✨';
-    statusEl.classList.add('shiny-alert');
 
     if (lumInterval) clearInterval(lumInterval);
 
@@ -916,13 +1036,27 @@ function activateLumBerry() {
         timeLeft--;
         countEl.innerText = timeLeft;
 
+        // Feedback visual de urgencia en el recuadro
+        if (timeLeft <= 3) {
+            lumEl.style.borderColor = (timeLeft % 2 === 0) ? "#ef4444" : "#94a3b8";
+            lumEl.style.color = (timeLeft % 2 === 0) ? "#ef4444" : "#e2e8f0";
+        }
+
         if (timeLeft <= 0) {
             clearInterval(lumInterval);
             lumInterval = null;
             SHINY_CHANCE = 100;
-            lumEl.style.display = 'none';
             lumActive = false;
-            updateStatusText();
+            
+            // Ocultar y resetear estilos
+            lumEl.style.display = 'none';
+            lumEl.style.borderColor = "#94a3b8";
+            lumEl.style.color = "#e2e8f0";
+            
+            if (typeof statusEl !== 'undefined') {
+                statusEl.classList.remove('shiny-alert');
+                updateStatusText();
+            }
         }
     }, 1000);
 }
@@ -1195,7 +1329,7 @@ async function fetchGameData() {
                 new Promise(r => shiny.onload = r)
             ]);
 
-            let rawName = data.name.split('-')[0];
+            let rawName = data.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
             const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
             pokemonData.push({ 
@@ -1481,25 +1615,32 @@ async function animateSlide(r1, c1, r2, c2) {
 
 async function processMatches() {
     let matches = findMatches();
+    let comboLevel = 0; 
     
-    while (matches.length > 0) {
-        let tilesToDestroy = new Set();
+    // Bloqueamos la interacción del usuario mientras ocurren las animaciones
+    isProcessing = true;
 
-        // 1. Check all matches and identify Berry AoE patterns
+    while (matches.length > 0) {
+        comboLevel++;
+        const comboMultiplier = Math.min(comboLevel, 5);
+        
+        let tilesToDestroy = new Set();
+        
+        // Variables para calcular el centro exacto del grupo de piezas
+        let sumX = 0;
+        let sumY = 0;
+        let count = 0;
+
+        // 1. Identificar matches y expandir si hay bayas
         matches.forEach(m => {
             const tile = board[m.r][m.c];
             if (!tile.isMatch) {
                 tilesToDestroy.add(`${m.r},${m.c}`);
-                
+
                 if (tile.isBerry) {
-                    // ACTIVATE SITRUS TIMER IF MATCHED
-                    if (tile.berryType === 'SITRUS') {
-                        activateSitrusTimer();
-                    }
-                    
+                    if (tile.berryType === 'SITRUS') activateSitrusTimer();
                     const pattern = getBerryPattern(tile, m.r, m.c);
                     pattern.forEach(pos => {
-                        // If the berry explosion hits OTHER berries, trigger them too
                         const hitTile = board[pos.r][pos.c];
                         if (hitTile.isBerry && !tilesToDestroy.has(`${pos.r},${pos.c}`)) {
                              if (hitTile.berryType === 'SITRUS') activateSitrusTimer();
@@ -1510,52 +1651,63 @@ async function processMatches() {
             }
         });
 
-        // 2. Process all marked tiles
+        // 2. Calcular el centro visual de la explosión para el fantasmita
+        const rect = canvas.getBoundingClientRect();
+        tilesToDestroy.forEach(posKey => {
+            const [r, c] = posKey.split(',').map(Number);
+            sumX += rect.left + (c * TILE_SIZE) + (TILE_SIZE / 2);
+            sumY += rect.top + (r * TILE_SIZE) + (TILE_SIZE / 2);
+            count++;
+        });
+
+        if (count > 0 && comboMultiplier > 1) {
+            const avgX = sumX / count;
+            const avgY = sumY / count;
+            showComboText(comboMultiplier, avgX, avgY);
+        }
+
+        // 3. Procesar Tiles, Puntuación y Capturas
         tilesToDestroy.forEach(posKey => {
             const [r, c] = posKey.split(',').map(Number);
             const tile = board[r][c];
 
             if (!tile.isMatch) {
-                tile.isMatch = true;
-                let tileScore = 100; // base
-        if (tile.isShiny) tileScore = 200; // + puntos extra para Shiny
-        score += tileScore * scoreMultiplier;
+                tile.isMatch = true; // Fundamental: marca como procesado
+                
+                let basePoints = tile.isShiny ? 200 : 100;
+                // Aplicamos (Puntos Base * Multiplicador Baya) * Multiplicador Combo
+                score += (basePoints * scoreMultiplier) * comboMultiplier;
 
-                // Capture if shiny
                 if (tile.isShiny) {
-    if (tile.isDitto) {
-        // Captura Ditto shiny
-        captureShiny(132, true); // el segundo parámetro indica que es Ditto
-        if (!isMuted) playDittoCry();
-    } else {
-        // Captura Pokémon normal shiny
-        captureShiny(tile.id);
-        const pData = pokemonData[tile.id];
-        if (pData.cry && !isMuted) {
-            const crySound = new Audio(pData.cry);
-            crySound.volume = 0.5;
-            crySound.play().catch(() => {});
-        }
-    }
-} else if (!isMuted && !tile.isBerry) {
-    // Sonido normal de pop para tiles no shiny
-    POP_SOUND_SOFT.currentTime = 0;
-    POP_SOUND_SOFT.play().catch(() => {});
-}
+                    if (tile.isDitto) {
+                        captureShiny(132, true);
+                        if (!isMuted) playDittoCry();
+                    } else {
+                        captureShiny(tile.id);
+                        const pData = pokemonData[tile.id];
+                        if (pData.cry && !isMuted) {
+                            const crySound = new Audio(pData.cry);
+                            crySound.volume = 0.5;
+                            crySound.play().catch(() => {});
+                        }
+                    }
+                } else if (!isMuted && !tile.isBerry) {
+                    POP_SOUND_SOFT.currentTime = 0;
+                    POP_SOUND_SOFT.play().catch(() => {});
+                }
             }
         });
 
-        // 3. Score Calculation
-        score += tilesToDestroy.size * 100 * scoreMultiplier;
-        scoreEl.innerText = score;
+        // Actualizar el HTML del score
+        document.getElementById('score').innerText = score;
 
-        // 4. Animation and Refill
+        // 4. Animación de encogimiento
         await animateShrink(Array.from(tilesToDestroy).map(key => {
             const [r, c] = key.split(',').map(Number);
             return { r, c };
         }));
 
-        // Gravity Logic
+        // 5. Gravedad: mover piezas hacia abajo
         for (let c = 0; c < GRID_SIZE; c++) {
             let empty = 0;
             for (let r = GRID_SIZE - 1; r >= 0; r--) {
@@ -1566,40 +1718,86 @@ async function processMatches() {
                     board[r][c] = { isMatch: true };
                 }
             }
+            // Crear nuevas piezas en la parte superior
             for (let r = 0; r < empty; r++) {
-    // Aquí es donde se crean las piezas nuevas que caen
-    board[r][c] = createTile(Math.floor(Math.random() * 6), true);
-    board[r][c].yOffset = -empty * TILE_SIZE;
-    if (board[r][c].isShiny) {
-    playSparkle();
-    board[r][c].hasSpawned = true; // opcional, para no repetir
-}
-}
+                board[r][c] = createTile(Math.floor(Math.random() * 6), true);
+                board[r][c].yOffset = -empty * TILE_SIZE;
+                if (board[r][c].isShiny) {
+                    playSparkle();
+                    board[r][c].hasSpawned = true;
+                }
+            }
         }
 
+        // 6. Esperar a que las piezas caigan visualmente
         await animateFalling();
         
-        // Re-check for chain reactions
+        // 7. Re-comprobar si la caída ha generado nuevos matches (Combo)
         matches = findMatches();
         updateStatusText();
     }
+
+    // Reactivamos la interacción al terminar todo
+    isProcessing = false;
 }
-function resetSitrusEffect() {
-    if (multiplierInterval) {
-        clearInterval(multiplierInterval);
-        multiplierInterval = null;
-    }
-    scoreMultiplier = 1;
+
+// Función auxiliar para el efecto visual
+function showComboText(multiplier, x, y) {
+    const ghost = document.createElement('div');
+    ghost.className = 'combo-ghost';
+    if (multiplier === 5) ghost.classList.add('max-ghost');
     
-    // UI Cleanup
-    const timerEl = document.getElementById('multiplier-timer');
-    const statusEl = document.getElementById('status');
+    ghost.innerText = `x${multiplier}`;
     
-    if (timerEl) timerEl.style.display = 'none';
-    if (statusEl) {
-        statusEl.classList.remove('shiny-alert');
-        statusEl.innerText = "SWIPE TO MATCH";
-    }
+    // Un pequeño offset aleatorio para que no salgan siempre idénticos
+    const offX = (Math.random() - 0.5) * 30;
+    const offY = (Math.random() - 0.5) * 30;
+    
+    ghost.style.left = `${x + offX}px`;
+    ghost.style.top = `${y + offY}px`;
+    
+    document.body.appendChild(ghost);
+    setTimeout(() => ghost.remove(), 1200);
+}
+// Función para crear el elemento flotante x2, x3...
+function showComboText(multiplier, x, y) {
+    const ghost = document.createElement('div');
+    ghost.className = 'combo-ghost';
+    if (multiplier === 5) ghost.classList.add('max-ghost');
+    
+    ghost.innerText = `x${multiplier}`;
+    
+    // Posicionamos el fantasma en las coordenadas exactas del match
+    // Sumamos un pequeño ajuste aleatorio para que si hay varios combos se dispersen
+    const randomOffsetX = (Math.random() - 0.5) * 30;
+    const randomOffsetY = (Math.random() - 0.5) * 30;
+    
+    ghost.style.left = `${x + randomOffsetX}px`;
+    ghost.style.top = `${y + randomOffsetY}px`;
+    
+    document.body.appendChild(ghost);
+    
+    setTimeout(() => ghost.remove(), 1200);
+}
+
+function showComboMultiplier(combo) {
+    if (combo <= 1) return; // No mostramos "x1"
+    
+    const comboText = document.createElement('div');
+    comboText.className = 'combo-multiplier';
+    comboText.innerText = `x${combo}`;
+    
+    // Posiciona el texto cerca del centro del tablero o de donde ocurra el match
+    // Puedes ajustar estas coordenadas para que aparezca más arriba o en un lugar específico
+    comboText.style.left = `${canvas.width / 2}px`;
+    comboText.style.top = `${canvas.height / 2}px`;
+    
+    document.body.appendChild(comboText);
+
+    // Elimina el texto después de la animación
+    setTimeout(() => {
+        comboText.remove();
+    }, 1000); // Duración de la animación en CSS
 }
 /** * Helper function to calculate which coordinates a berry hits
  */
@@ -1635,7 +1833,7 @@ function getBerryPattern(berry, r, c) {
             break;
         case 'SITRUS': // Double Points
             scoreMultiplier = 2;
-            statusEl.innerText = '✨ 2X POINTS ACTIVE! ✨';
+            statusEl.innerText = '✨ x2 POINTS ACTIVE! ✨';
             statusEl.classList.add('shiny-alert');
             setTimeout(() => {
                 scoreMultiplier = 1;
@@ -1821,7 +2019,26 @@ function resetToMenu() {
 }
 
 function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOverlay.style.display = 'flex'; localStorage.removeItem('shinyMatchSave'); checkSaveFile(); }
-
+function resetSitrusEffect() {
+    // Detiene el intervalo del cronómetro si existe
+    if (typeof multiplierInterval !== 'undefined' && multiplierInterval) {
+        clearInterval(multiplierInterval);
+        multiplierInterval = null;
+    }
+    
+    // Resetea el multiplicador a la normalidad
+    scoreMultiplier = 1;
+    
+    // Limpieza de la interfaz (ajusta los IDs según tu HTML)
+    const timerEl = document.getElementById('multiplier-timer');
+    const statusEl = document.getElementById('status');
+    
+    if (timerEl) timerEl.style.display = 'none';
+    if (statusEl) {
+        statusEl.classList.remove('shiny-alert');
+        statusEl.innerText = "SWIPE TO MATCH";
+    }
+}
 async function startGame() {
     resetSitrusEffect();
     resetSessionUI(); // <--- AÑADIR ESTO AQUÍ para limpiar iconos visuales al empezar partida
@@ -2114,7 +2331,7 @@ function playRandomMusic() {
 
   bgAudio = new Audio(file);
   bgAudio.loop = true;
-  bgAudio.volume = 0.5;
+  bgAudio.volume = 0.3;
 
   bgAudio.play().catch(err => {
     console.warn("No se pudo reproducir la música automáticamente. El usuario debe interactuar con la página primero.", err);
@@ -2135,6 +2352,8 @@ const observer = new MutationObserver(() => {
     const visible = window.getComputedStyle(gameScreen).display !== 'none';
     if (!visible) stopMusic();
 });
+
+
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
