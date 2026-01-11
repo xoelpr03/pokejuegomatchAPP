@@ -681,16 +681,18 @@ async function selectRegion(regionKey) {
 // Configuración de entrada y prevención de scroll
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
-const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS'];
-const BERRY_SPRITES = {};
+const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS', 'ASPEAR'];
+const BERRY_SPRITES = {}
 const BERRY_LIST = {
     'CHERI': 'cheri-berry',
     'CHESTO': 'chesto-berry',
     'PECHA': 'pecha-berry',
     'ORAN': 'oran-berry',
     'RAWST': 'rawst-berry',
-    'SITRUS': 'sitrus-berry'
+    'SITRUS': 'sitrus-berry',
+    'ASPEAR': 'aspear-berry' // <-- nueva berry
 };
+
 let allPokemonList = [];
 function playDittoCry() {
     if (!isMuted) {
@@ -1521,9 +1523,14 @@ function getBerryPattern(berry, r, c) {
                 updateStatusText();
             }, 60000);
             break;
+        case 'ASPEAR': // NUEVO: fila + columna
+            for (let i = 0; i < GRID_SIZE; i++) pattern.push({ r: i, c: c }); // columna
+            for (let j = 0; j < GRID_SIZE; j++) pattern.push({ r: r, c: j }); // fila
+            break;
     }
     return pattern;
 }
+
 
 async function animateShrink(matches) {
     const duration = 250; const startTime = Date.now();
@@ -1677,7 +1684,7 @@ function updateDexCount() {
     const countEl = document.getElementById('dex-count');
     if (countEl) {
         const total = Object.keys(caughtShinies).length;
-        countEl.innerText = `Shinies Capturados: ${total}`;
+        countEl.innerText = `Caught Shinies: ${total}`;
     }
 }
 
@@ -1912,7 +1919,8 @@ function openBerryGuide() {
         'PECHA': 'Clears ALL Pokémon of the same color.',
         'ORAN': 'Explodes in a 3x3 SQUARE area.',
         'RAWST': 'Clears tiles in an X-SHAPED diagonal.',
-        'SITRUS': 'DOUBLE POINTS for 60 seconds!'
+        'SITRUS': 'DOUBLE POINTS for 60 seconds!',
+        'ASPEAR': 'Clears the entire ROW and COLUMN.'
     };
 
     BERRY_TYPES.forEach(type => {
@@ -1951,4 +1959,3 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
