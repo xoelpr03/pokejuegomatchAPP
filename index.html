@@ -94,47 +94,60 @@
         }
 
         #dex-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-            gap: clamp(6px, 1.5vw, 10px);
-            max-height: 45vh;
-            overflow-y: auto;
-            margin: 15px 0;
-            padding: 10px;
-            background: #f1f5f9;
-            border-radius: 12px;
-        }
-
-        .dex-slot {
-    position: relative; /* Para poder posicionar el número dentro */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border: 1px solid #ccc;
-    padding: 5px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: clamp(6px, 1.5vw, 10px);
+    max-height: 45vh;
+    overflow-y: auto;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 12px;
 }
 
-.dex-number {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #555;
-    margin-bottom: 2px;
+.dex-slot {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.dex-num {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    font-size: 8px;
+    font-weight: 900;
+    color: #cbd5e1; /* Color suave para el número */
+    z-index: 1;
+}
+
+.dex-img {
+    width: 90%;
+    height: auto;
+    image-rendering: pixelated;
+    transition: transform 0.2s;
 }
 
 .not-caught .dex-img {
-    filter: brightness(0); /* Silueta negra si no está atrapado */
-    opacity: 0.5;
+    filter: brightness(0);
+    opacity: 0.3;
 }
 
-        .dex-num {
-            position: absolute;
-            top: 2px;
-            left: 3px;
-            font-size: 8px;
-            font-weight: 900;
-            color: #cbd5e1;
-        }
+.caught {
+    background: #ffffff;
+    border-color: #fde047; /* Borde amarillo para capturados */
+    box-shadow: inset 0 0 10px rgba(254, 252, 232, 0.5);
+}
 
+.caught .dex-num {
+    color: #94a3b8; /* Número más visible si está capturado */
+}
         /* --- GAME SCREEN --- */
         #game-screen { 
             display: none; 
@@ -558,7 +571,7 @@ POP_SOUND_SOFT.volume = 0.7;
 let scoreMultiplier = 1
 let isMuted = false;
 const GRID_SIZE = 7; 
-const SHINY_CHANCE = 100;
+const SHINY_CHANCE = 1;
 let TILE_SIZE = 0;
 let board = [];
 let score = 0;
@@ -602,7 +615,11 @@ const regionRanges = {
 };
 
 async function selectRegion(regionKey) {
-    // 1. Limpiar datos previos
+    // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
+    resetSessionUI(); 
+    gameOver = false; // Aseguramos que el estado de juego esté activo
+    
+    // 1. Limpiar datos de lógica previos
     pokemonData = []; 
     pokemonColors = [];
 
@@ -620,13 +637,17 @@ async function selectRegion(regionKey) {
         currentRegionIds = [...baseIds, ...extraIds];
     }
 
-    // 2. UI: Mostrar carga
+    // 2. UI: Mostrar carga y ocultar menús
     closeModals();
     document.getElementById('main-menu').style.display = 'none';
+    // También ocultamos el modal de Game Over si venimos de un "Reintentar"
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    if (gameOverOverlay) gameOverOverlay.style.display = 'none';
+
     const loadingMsg = document.getElementById('loading-msg');
     if (loadingMsg) loadingMsg.style.display = 'flex';
 
-    // 3. Descargar los 6 Pokémon (fetchGameData ya usa currentRegionIds)
+    // 3. Descargar los 6 Pokémon
     await Promise.all([
         fetchGameData(),
         preloadBerries()
@@ -642,11 +663,19 @@ async function selectRegion(regionKey) {
     if (loadingMsg) loadingMsg.style.display = 'none';
     document.getElementById('game-screen').style.display = 'flex';
     
+    // IMPORTANTE: Asegurarse de que el contador visual sea 0
+    score = 0;
+    if (scoreEl) scoreEl.innerText = "0";
+
     initBoard(); 
     
     if (!gameInitialized) {
         gameInitialized = true;
         requestAnimationFrame(renderLoop);
+        // Iniciamos el chequeo de inactividad si no estaba
+        if (typeof checkIdleTime === 'function') {
+            setInterval(checkIdleTime, 1000);
+        }
     }
 }
 // Configuración de entrada y prevención de scroll
@@ -1001,15 +1030,21 @@ async function fetchGameData() {
         pokemonData = [];
         pokemonColors = [];
         const selectedIds = new Set();
-        const missingShinyIds = currentRegionIds.filter(id => !caughtShinies[id]);
+
+        // Usar currentRegionIds (la que definimos en selectRegion)
+        const idsToUse = (typeof currentRegionIds !== 'undefined') ? currentRegionIds : [];
+        
+        // Filtrar los que aún no son shinies en la Pokédex global
+        const missingShinyIds = idsToUse.filter(id => !caughtShinies[id]);
 
         while (selectedIds.size < 6) {
             let id;
+            // Prioridad a los que no tenemos (70% de probabilidad)
             if (missingShinyIds.length > 0 && Math.random() < 0.7) {
                 const randomIndex = Math.floor(Math.random() * missingShinyIds.length);
                 id = missingShinyIds.splice(randomIndex, 1)[0];
             } else {
-                id = currentRegionIds[Math.floor(Math.random() * currentRegionIds.length)];
+                id = idsToUse[Math.floor(Math.random() * idsToUse.length)];
             }
             selectedIds.add(id);
         }
@@ -1597,27 +1632,53 @@ function checkPotential(r1, c1, r2, c2) {
 
 
 function captureShiny(tileId, isDitto = false) {
-    let pInfo;
-    if (isDitto) {
-        // Datos genéricos para Ditto Shiny si quieres que aparezca
-        pInfo = { 
-            id: 132, 
-            name: 'Ditto', 
-            images: { shiny: { src: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/132.png' } } 
-        };
-    } else {
-        pInfo = pokemonData[tileId];
-    }
-    if (!caughtShinies[pInfo.id]) { 
-        caughtShinies[pInfo.id] = pInfo.images.shiny.src; 
-        localStorage.setItem('shinyDex', JSON.stringify(caughtShinies)); 
-    }
-    const img = document.createElement('img'); 
-    img.src = pInfo.images.shiny.src; 
-    img.className = 'shiny-icon';
-    shinyListEl.appendChild(img); 
-    finalShinyListEl.appendChild(img.cloneNode());
+    try {
+        let pInfo;
 
+        if (isDitto) {
+            pInfo = { 
+                id: 132, 
+                name: 'Ditto', 
+                images: { shiny: { src: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/132.png' } } 
+            };
+        } else {
+            // IMPORTANTE: tileId debe ser el índice 0-5
+            pInfo = pokemonData[tileId];
+        }
+
+        // Si por alguna razón no hay datos, salimos de la función inmediatamente
+        if (!pInfo || !pInfo.id) return;
+
+        // Aplicar el ID de forma especial (Palafin, Zacian, etc.)
+        const finalId = FORM_OVERRIDES[pInfo.id] || pInfo.id;
+
+        // Guardar en el almacenamiento persistente
+        if (!caughtShinies[finalId]) { 
+    caughtShinies[finalId] = pInfo.images.shiny.src; // Guardamos el link de la imagen
+    localStorage.setItem('shinyDex', JSON.stringify(caughtShinies)); 
+        }
+
+        // Actualizar UI del tracker lateral
+        const img = document.createElement('img'); 
+        img.src = pInfo.images.shiny.src; 
+        img.className = 'shiny-icon';
+        
+        if (shinyListEl) shinyListEl.appendChild(img); 
+        if (finalShinyListEl) finalShinyListEl.appendChild(img.cloneNode());
+        
+        updateDexCount();
+
+    } catch (error) {
+        console.error("Error en captureShiny:", error);
+    }
+}
+
+function updateDexCount() {
+    const countEl = document.getElementById('dex-count');
+    if (countEl) {
+        const total = Object.keys(caughtShinies).length;
+        countEl.innerText = `Shinies Capturados: ${total}`;
+    }
 }
 
 function isShinyOnBoard() { return board.some(row => row.some(tile => tile.isShiny && !tile.isMatch)); }
@@ -1627,6 +1688,8 @@ function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOv
 
 async function startGame() {
     resetSitrusEffect();
+    resetSessionUI(); // <--- AÑADIR ESTO AQUÍ para limpiar iconos visuales al empezar partida
+    
     mainMenu.style.display = 'none'; 
     gameOverOverlay.style.display = 'none'; 
     gameScreen.style.display = 'flex'; 
@@ -1639,8 +1702,6 @@ async function startGame() {
     score = 0; 
     scoreEl.innerText = "0"; 
     gameOver = false;
-    shinyListEl.innerHTML = ""; 
-    finalShinyListEl.innerHTML = "";
     
     // Load Berries AND Pokemon data simultaneously
     await Promise.all([fetchGameData(), preloadBerries()]);
@@ -1660,21 +1721,72 @@ async function startGame() {
 }
 
 function openDex() {
+    if (!dexGrid) return;
     dexGrid.innerHTML = "";
-    dexCount.innerText = `COLLECTED: ${Object.keys(caughtShinies).length}`;
 
-    // Pokémon base (1-1025)
-    for (let id = 1; id <= 1025; id++) {
-        dexGrid.appendChild(createDexSlot(id, false)); // 'false' porque no es regional
-    }
+    // 1. Definimos la lista de IDs a mostrar
+    // Si estamos en una región, mostramos esa lista. Si no, Nacional + Regionales.
+    const ALL_IDS = (typeof currentGameIds !== 'undefined' && currentGameIds.length > 0) 
+        ? currentGameIds 
+        : [...Array.from({length: 1025}, (_, i) => i + 1), ...REGIONAL_IDS];
 
-    // Pokémon regionales con numeración R-1, R-2...
-    REGIONAL_IDS.forEach((id, index) => {
-        // Pasamos el id y el número de orden (index + 1)
-        dexGrid.appendChild(createDexSlot(id, index + 1)); 
+    ALL_IDS.forEach(id => {
+        // 2. Determinar la etiqueta (Número o R-X)
+        let label = id;
+        if (id > 1025) {
+            const rIndex = REGIONAL_IDS.indexOf(id);
+            if (rIndex !== -1) {
+                label = `R-${rIndex + 1}`;
+            }
+        }
+
+        // 3. Verificar si está capturado (considerando formas especiales como Palafin/Zacian)
+        const effectiveId = (typeof FORM_OVERRIDES !== 'undefined' && FORM_OVERRIDES[id]) || id;
+        const caughtData = caughtShinies[effectiveId];
+
+        // 4. Crear el elemento del slot
+        const slot = document.createElement('div');
+        slot.className = `dex-slot ${caughtData ? 'caught' : 'not-caught'}`;
+
+        // 5. Crear el número/etiqueta
+        const numSpan = document.createElement('span');
+        numSpan.className = 'dex-num';
+        numSpan.innerText = label;
+
+        // 6. Crear la imagen
+        const img = document.createElement('img');
+        img.className = 'dex-img';
+        
+        if (caughtData) {
+            // Si es un string (URL) lo usamos, si no, generamos la URL oficial
+            img.src = typeof caughtData === 'string' ? caughtData : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${effectiveId}.png`;
+        } else {
+            // Silueta del normal
+            img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+        }
+
+        slot.appendChild(numSpan);
+        slot.appendChild(img);
+        dexGrid.appendChild(slot);
     });
 
-    dexModal.style.display = 'flex';
+    if (dexModal) dexModal.style.display = 'flex';
+    updateDexCount();
+}
+function resetSessionUI() {
+    // 1. Iconos de la barra lateral (Game Screen)
+    if (shinyListEl) shinyListEl.innerHTML = "";
+    
+    // 2. Iconos de la pantalla de Game Over (Modal final)
+    if (finalShinyListEl) finalShinyListEl.innerHTML = "";
+    
+    // 3. Reset de puntos y estado
+    score = 0;
+    if (scoreEl) scoreEl.innerText = "0";
+    if (statusEl) {
+        statusEl.innerText = "SWIPE TO MATCH";
+        statusEl.classList.remove('shiny-alert');
+    }
 }
 function createDexSlot(id, regionalOrder) {
     const slot = document.createElement('div');
