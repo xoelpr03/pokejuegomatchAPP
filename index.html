@@ -573,6 +573,8 @@ hr {
     }
 </style>
 
+<audio id="bgAudio" preload="auto"></audio>
+
 <script>
     const tutorialModal = document.getElementById('tutorial-modal');
     const DITTO_CHANCE = 0.01;
@@ -623,6 +625,28 @@ const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10
 const DITTO_CRY = new Audio('https://raw.githubusercontent.com/PokeAPI/stock-pokemon-cries/master/cries/pokemon/latest/132.ogg');
 DITTO_CRY.volume = 0.5; // Adjust volume as needed
 let caughtShinies = JSON.parse(localStorage.getItem('shinyDex')) || {};
+const musicFiles = [
+  'audio/accumula.mp3',
+  'audio/autumn.mp3',
+  'audio/calyrex.mp3',
+  'audio/celadon.mp3',
+  'audio/ecruteak.mp3',
+  'audio/hauoli.mp3',
+  'audio/hooh.mp3',
+  'audio/jacinthe.mp3',
+  'audio/jubilife.mp3',
+  'audio/lake.mp3',
+  'audio/levincia.mp3',
+  'audio/lugia.mp3',
+  'audio/lumiose.mp3',
+  'audio/mauville.mp3',
+  'audio/relic.mp3',
+  'audio/route.mp3',
+  'audio/sonia.mp3',
+  'audio/stow.mp3',
+  'audio/treasure.mp3',
+  'audio/wild.mp3'
+];
 const regionRanges = {
     'kanto': { start: 1, end: 151 },
     'johto': { start: 152, end: 251 },
@@ -1189,10 +1213,17 @@ async function fetchGameData() {
 }
 
 function initBoard() {
-    resize();
-    ensurePlayableBoard();
-    lastMoveTime = Date.now();
-    if (isShinyOnBoard()) playSparkle();
+  resize();
+  ensurePlayableBoard();
+  playRandomMusic(); // se ejecuta al cargar el tablero
+  lastMoveTime = Date.now();
+  if (isShinyOnBoard()) playSparkle();
+}
+
+
+function stopMusic() {
+  bgAudio.pause();
+  bgAudio.currentTime = 0; // opcional: reinicia para que empiece desde el principio la próxima vez
 }
 
 function ensurePlayableBoard() {
@@ -1231,7 +1262,9 @@ function resize() {
 }
 
 function renderLoop() {
+    
     if (gameScreen.style.display === 'none') { 
+        updateMusicState(); // música se para si el tablero no está
         requestAnimationFrame(renderLoop); 
         return; 
     }
@@ -1779,7 +1812,14 @@ function updateDexCount() {
 
 function isShinyOnBoard() { return board.some(row => row.some(tile => tile.isShiny && !tile.isMatch)); }
 function playSparkle() { if (!isMuted) { SHINY_SOUND.currentTime = 0; SHINY_SOUND.play().catch(()=>{}); } }
-function resetToMenu() { resetSitrusEffect(); gameScreen.style.display = 'none'; mainMenu.style.display = 'block'; checkSaveFile(); }
+function resetToMenu() {
+  resetSitrusEffect();
+  stopMusic(); // <--- esto para la música
+  gameScreen.style.display = 'none';
+  mainMenu.style.display = 'block';
+  checkSaveFile();
+}
+
 function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOverlay.style.display = 'flex'; localStorage.removeItem('shinyMatchSave'); checkSaveFile(); }
 
 async function startGame() {
@@ -1916,7 +1956,25 @@ function closeModals() {
     dexModal.style.display = 'none';
     whoModal.style.display = 'none';
 }
-function toggleMute() { isMuted = !isMuted; muteBtn.innerText = isMuted ? '🔇' : '🔊'; }
+function toggleMute() {
+  isMuted = !isMuted;
+  muteBtn.innerText = isMuted ? '🔇' : '🔊';
+  if (bgAudio) {
+    if (isMuted) bgAudio.pause();
+    else bgAudio.play().catch(() => {});
+  }
+}
+function updateMusicState() {
+    if (!bgAudio) return;
+
+    // Si el tablero no está visible, paramos la música
+    if (document.getElementById('game-screen').style.display === 'none') {
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+    } else if (!isMuted) {
+        bgAudio.play().catch(() => {});
+    }
+}
 
 function spawnSparkle(tile) {
     const drawX = tile.c * TILE_SIZE + TILE_SIZE/2;
@@ -2043,7 +2101,40 @@ function closeModals() {
     const regionModal = document.getElementById('region-modal');
     if (regionModal) regionModal.style.display = 'none';
 }
+function playRandomMusic() {
+  if (bgAudio) {
+    bgAudio.pause();
+    bgAudio = null;
+  }
 
+  if (isMuted) return; // no reproducir si está silenciado
+
+  const randomIndex = Math.floor(Math.random() * musicFiles.length);
+  const file = musicFiles[randomIndex];
+
+  bgAudio = new Audio(file);
+  bgAudio.loop = true;
+  bgAudio.volume = 0.5;
+
+  bgAudio.play().catch(err => {
+    console.warn("No se pudo reproducir la música automáticamente. El usuario debe interactuar con la página primero.", err);
+  });
+}
+function stopMusic() {
+  if (bgAudio) {
+    bgAudio.pause();
+    bgAudio.currentTime = 0;
+    bgAudio = null;
+  }
+}
+
+// Detecta automáticamente cuando el tablero desaparece
+const observer = new MutationObserver(() => {
+    const gameScreen = document.getElementById('game-screen');
+    if (!gameScreen) return;
+    const visible = window.getComputedStyle(gameScreen).display !== 'none';
+    if (!visible) stopMusic();
+});
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
