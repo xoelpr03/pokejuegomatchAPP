@@ -530,7 +530,48 @@ hr {
         scale: 1;
     }
 }
+.btn-share {
+    background: #3b82f6; /* Action blue */
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 0px #1d4ed8; /* Darker blue shadow for 3D effect */
+    width: 100%; /* Makes it easy to click on mobile */
+    max-width: 250px;
+}
 
+.btn-share:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0px #1d4ed8;
+}
+
+.btn-share:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0px #1d4ed8;
+}
+
+/* Optional: Add a pulse animation to draw attention to the highscore */
+@keyframes pulse-gold {
+    0% { text-shadow: 0 0 5px #fbbf24; }
+    50% { text-shadow: 0 0 20px #fbbf24; }
+    100% { text-shadow: 0 0 5px #fbbf24; }
+}
+
+#final-score {
+    color: #fbbf24;
+    animation: pulse-gold 2s infinite;
+}
 /* Animación de balanceo lateral (efecto flotante) */
 @keyframes ghostSway {
     from { transform: translate(-60%, -50%) rotate(-5deg); }
@@ -588,6 +629,9 @@ hr {
             <div class="btn-group" style="width: 220px;">
                 <button class="menu-btn mode-play" onclick="startGame()">Try Again</button>
                 <button class="menu-btn exit-link-btn" onclick="resetToMenu()">Main Menu</button>
+                <button onclick="downloadScoreImage()" class="btn-share">
+    SAVE IMAGE 📥
+</button>
             </div>
         </div>
 
@@ -2047,6 +2091,7 @@ function captureShiny(tileId, isDitto = false) {
 
         // Actualizar UI del tracker lateral
         const img = document.createElement('img'); 
+        img.crossOrigin = "anonymous";
         img.src = pInfo.images.shiny.src; 
         img.className = 'shiny-icon';
         
@@ -2417,6 +2462,93 @@ document.addEventListener('visibilitychange', () => {
         updateMusicState();
     }
 });
+
+async function downloadScoreImage() {
+    const canvasRef = document.createElement('canvas');
+    const ctx = canvasRef.getContext('2d');
+    canvasRef.width = 600;
+    canvasRef.height = 450; // Increased height for better layout
+
+    // 1. Background: Match game aesthetic (Deep Slate Blue)
+    const gradient = ctx.createLinearGradient(0, 0, 0, 450);
+    gradient.addColorStop(0, '#1e293b');
+    gradient.addColorStop(1, '#0f172a');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 600, 450);
+
+    // 2. Gold Border (Matching UI panels)
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(5, 5, 590, 440);
+
+    // 3. Header Text
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SHINY MATCH RUN', 300, 70);
+
+    // 4. Main Score (Big and White)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 80px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(score.toLocaleString(), 300, 160);
+    
+    ctx.font = 'bold 18px Arial';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('TOTAL SCORE', 300, 190);
+
+    // 5. Total Shinies Captured Counter
+    const totalShinies = document.querySelectorAll('#shiny-list img').length;
+    ctx.fillStyle = '#fde047'; // Bright yellow
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(`✨ SHINIES CAPTURED: ${totalShinies} ✨`, 300, 240);
+
+    // 6. Display the 6 Featured Pokémon (The Board Species)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px Arial';
+    ctx.fillText('POKÉMON HUNTED:', 300, 280);
+
+    const iconSize = 70;
+    const spacing = 85;
+    const startX = 300 - ((spacing * 5 + iconSize) / 2); // Center the 6 icons
+    const startY = 300;
+
+    // We draw the 6 main pokemon from the session data
+    for (let i = 0; i < 6; i++) {
+        if (pokemonData[i]) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            // Use normal or shiny sprite for the species icons
+            img.src = pokemonData[i].images.normal.src;
+
+            // Wait for image to draw or use a helper
+            try {
+                // Background circle for icons
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.beginPath();
+                ctx.arc(startX + (i * spacing) + iconSize/2, startY + iconSize/2, 35, 0, Math.PI*2);
+                ctx.fill();
+                
+                // Draw the species icon
+                ctx.drawImage(img, startX + (i * spacing), startY, iconSize, iconSize);
+            } catch (e) {
+                console.error("Icon draw error", e);
+            }
+        }
+    }
+
+    // 7. Watermark / Footer
+    ctx.font = 'italic 14px Arial';
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText('https://xoelpr03.github.io/pokejuegomatch/', 300, 420);
+
+    // 8. Download
+    const dataUrl = canvasRef.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `PokeMatch_Record_${score}.png`;
+    link.href = dataUrl;
+    link.click();
+}
 
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
