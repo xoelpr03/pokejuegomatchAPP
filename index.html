@@ -1455,6 +1455,7 @@ async function fetchGameData() {
 function initBoard() {
   resize();
   ensurePlayableBoard();
+  initMusicPlaylist();
   playRandomMusic(); // se ejecuta al cargar el tablero
   lastMoveTime = Date.now();
   if (isShinyOnBoard()) playSparkle();
@@ -2333,21 +2334,34 @@ let lastSongIndex = -1;
 
 function playRandomMusic() {
     if (isMuted) return;
-    if (bgAudio) { bgAudio.pause(); bgAudio.onended = null; }
 
-    let randomIndex;
-    // Bucle para asegurar que la nueva canción no sea la misma que la anterior
-    do {
-        randomIndex = Math.floor(Math.random() * musicFiles.length);
-    } while (randomIndex === lastSongIndex && musicFiles.length > 1);
+    // Si no hay playlist o se terminó, barajamos de nuevo
+    if (!shuffledPlaylist.length || currentSongIndex >= shuffledPlaylist.length) {
+        shuffledPlaylist = shuffleArray(musicFiles);
+        currentSongIndex = 0;
+    }
 
-    lastSongIndex = randomIndex;
-    
-    bgAudio = new Audio(musicFiles[randomIndex]);
+    const nextSong = shuffledPlaylist[currentSongIndex];
+    currentSongIndex++;
+
+    // Detener audio anterior
+    if (bgAudio) {
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+    }
+
+    bgAudio = new Audio(nextSong);
     bgAudio.loop = false;
-    bgAudio.volume = 0.3;
-    bgAudio.onended = () => playRandomMusic();
+    bgAudio.volume = 0.5;
+
     bgAudio.play().catch(() => {});
+
+    // Cuando termina → reproducir la siguiente
+    bgAudio.onended = () => {
+        if (!gameOver && !isMuted) {
+            playRandomMusic();
+        }
+    };
 }
 
 function stopMusic() {
@@ -2579,10 +2593,24 @@ function showUltimateCollectorPopup() {
     `;
     document.body.appendChild(overlay);
 }
+let shuffledPlaylist = [];
+let currentSongIndex = 0;
+let bgAudio = null;
+function shuffleArray(array) {
+    const arr = [...array]; // copia segura
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+function initMusicPlaylist() {
+    shuffledPlaylist = shuffleArray(musicFiles);
+    currentSongIndex = 0;
+}
 
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
