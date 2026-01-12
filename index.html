@@ -834,6 +834,19 @@ const regionRanges = {
     }
 };
 
+const REGION_THEMES = {
+    'Kanto': { primary: '#ef4444', secondary: '#991b1b', text: '#ffffff', border: '#fbbf24' }, // Rojo/Oro
+    'Johto': { primary: '#8b5cf6', secondary: '#4c1d95', text: '#ffffff', border: '#e5e7eb' }, // Plata/Cristal
+    'Hoenn': { primary: '#10b981', secondary: '#064e3b', text: '#ffffff', border: '#3b82f6' }, // Esmeralda/Zafiro
+    'Sinnoh': { primary: '#3b82f6', secondary: '#1e3a8a', text: '#ffffff', border: '#94a3b8' }, // Diamante/Perla
+    'Unova': { primary: '#4b5563', secondary: '#111827', text: '#ffffff', border: '#f3f4f6' }, // Blanco/Negro
+    'Kalos': { primary: '#ec4899', secondary: '#831843', text: '#ffffff', border: '#60a5fa' }, // X/Y
+    'Alola': { primary: '#f59e0b', secondary: '#78350f', text: '#ffffff', border: '#facc15' }, // Sol/Luna
+    'Galar': { primary: '#0ea5e9', secondary: '#0c4a6e', text: '#ffffff', border: '#e11d48' }, // Espada/Escudo
+    'Paldea': { primary: '#a855f7', secondary: '#581c87', text: '#ffffff', border: '#f97316' }, // Escarlata/Púrpura
+    'Default': { primary: '#1e293b', secondary: '#0f172a', text: '#ffffff', border: '#fbbf24' }
+};
+
 async function selectRegion(regionKey) {
     // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
     resetSessionUI(); 
@@ -2492,85 +2505,81 @@ async function downloadScoreImage() {
     const canvasRef = document.createElement('canvas');
     const ctx = canvasRef.getContext('2d');
     canvasRef.width = 600;
-    canvasRef.height = 450; // Increased height for better layout
+    canvasRef.height = 450;
 
-    // 1. Background: Match game aesthetic (Deep Slate Blue)
+    // Obtener el tema visual según la región activa
+    // (Asegúrate de que 'currentRegionName' sea la variable donde guardas el nombre de la región)
+    const theme = REGION_THEMES[currentRegionName] || REGION_THEMES['Default'];
+
+    // 1. Fondo: Degradado basado en la región
     const gradient = ctx.createLinearGradient(0, 0, 0, 450);
-    gradient.addColorStop(0, '#1e293b');
-    gradient.addColorStop(1, '#0f172a');
+    gradient.addColorStop(0, theme.primary);
+    gradient.addColorStop(1, theme.secondary);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 600, 450);
 
-    // 2. Gold Border (Matching UI panels)
-    ctx.strokeStyle = '#fbbf24';
+    // 2. Borde temático
+    ctx.strokeStyle = theme.border;
     ctx.lineWidth = 10;
     ctx.strokeRect(5, 5, 590, 440);
 
-    // 3. Header Text
-    ctx.fillStyle = '#fbbf24';
+    // 3. Texto del Título
+    ctx.fillStyle = theme.border; // Usamos el color del borde para resaltar el título
     ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('SHINY MATCH RUN', 300, 70);
+    ctx.fillText(`SHINY MATCH: ${currentRegionName.toUpperCase()}`, 300, 70);
 
-    // 4. Main Score (Big and White)
-    ctx.fillStyle = '#ffffff';
+    // 4. Puntuación Principal
+    ctx.fillStyle = theme.text;
     ctx.font = 'bold 80px "Segoe UI", Arial, sans-serif';
     ctx.fillText(score.toLocaleString(), 300, 160);
     
     ctx.font = 'bold 18px Arial';
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText('TOTAL SCORE', 300, 190);
 
-    // 5. Total Shinies Captured Counter
+    // 5. Contador de Shinies
     const totalShinies = document.querySelectorAll('#shiny-list img').length;
-    ctx.fillStyle = '#fde047'; // Bright yellow
+    ctx.fillStyle = '#fde047'; // Amarillo brillante para los destellos
     ctx.font = 'bold 24px Arial';
     ctx.fillText(`✨ SHINIES CAPTURED: ${totalShinies} ✨`, 300, 240);
 
-    // 6. Display the 6 Featured Pokémon (The Board Species)
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '16px Arial';
-    ctx.fillText('POKÉMON HUNTED:', 300, 280);
-
+    // 6. Dibujar iconos de Pokémon (con círculo de fondo suave)
     const iconSize = 70;
     const spacing = 85;
-    const startX = 300 - ((spacing * 5 + iconSize) / 2); // Center the 6 icons
+    const startX = 300 - ((spacing * 5 + iconSize) / 2);
     const startY = 300;
 
-    // We draw the 6 main pokemon from the session data
     for (let i = 0; i < 6; i++) {
         if (pokemonData[i]) {
             const img = new Image();
             img.crossOrigin = "anonymous";
-            // Use normal or shiny sprite for the species icons
             img.src = pokemonData[i].images.normal.src;
 
-            // Wait for image to draw or use a helper
             try {
-                // Background circle for icons
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                // Fondo circular para los iconos adaptado al tema
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.beginPath();
-                ctx.arc(startX + (i * spacing) + iconSize/2, startY + iconSize/2, 35, 0, Math.PI*2);
+                ctx.arc(startX + (i * spacing) + iconSize/2, startY + iconSize/2, 38, 0, Math.PI*2);
                 ctx.fill();
                 
-                // Draw the species icon
+                // Dibujar el pokemon
                 ctx.drawImage(img, startX + (i * spacing), startY, iconSize, iconSize);
             } catch (e) {
-                console.error("Icon draw error", e);
+                console.error("Error drawing icon", e);
             }
         }
     }
 
-    // 7. Watermark / Footer
+    // 7. Marca de agua
     ctx.font = 'italic 14px Arial';
-    ctx.fillStyle = '#475569';
-    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillText('https://xoelpr03.github.io/pokejuegomatch/', 300, 420);
 
-    // 8. Download
+    // 8. Descarga
     const dataUrl = canvasRef.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `PokeMatch_Record_${score}.png`;
+    link.download = `PokeMatch_${currentRegionName}_${score}.png`;
     link.href = dataUrl;
     link.click();
 }
