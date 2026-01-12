@@ -612,6 +612,7 @@ hr {
         <button class="menu-btn" style="background: #6366f1;" onclick="openTutorial()">How to Play</button>
         
         <button class="menu-btn mode-dex" onclick="openDex()">Shiny Pokedex</button>
+    </div>
     <div class="creator-credit">created by ξawsjαke</div>
 </div>
 
@@ -731,6 +732,8 @@ hr {
 <audio id="bgAudio" preload="auto"></audio>
 
 <script>
+let sessionShiniesCaught = new Set(); 
+let hasShownSessionPopup = false; // Se reinicia cada vez que abres el juego
     const tutorialModal = document.getElementById('tutorial-modal');
     const DITTO_CHANCE = 0.01;
     const DITTO_IMAGE = new Image(); DITTO_IMAGE.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png';
@@ -2078,6 +2081,13 @@ function captureShiny(tileId, isDitto = false) {
 
         // Si por alguna razón no hay datos, salimos de la función inmediatamente
         if (!pInfo || !pInfo.id) return;
+        sessionShiniesCaught.add(pInfo.id);
+
+        // Si llegamos a los 6 diferentes y aún no hemos mostrado el aviso en ESTA partida
+        if (sessionShiniesCaught.size === 6 && !hasShownSessionPopup) {
+            showUltimateCollectorPopup();
+            hasShownSessionPopup = true; // Bloquea el popup hasta que se reinicie el juego
+        }
 
         // Aplicar el ID de forma especial (Palafin, Zacian, etc.)
         const finalId = FORM_OVERRIDES[pInfo.id] || pInfo.id;
@@ -2146,6 +2156,8 @@ function resetSitrusEffect() {
 async function startGame() {
     resetSitrusEffect();
     resetSessionUI(); // <--- AÑADIR ESTO AQUÍ para limpiar iconos visuales al empezar partida
+    sessionShiniesCaught.clear();
+    hasShownSessionPopup = false;
     
     mainMenu.style.display = 'none'; 
     gameOverOverlay.style.display = 'none'; 
@@ -2548,10 +2560,28 @@ async function downloadScoreImage() {
     link.href = dataUrl;
     link.click();
 }
+function showUltimateCollectorPopup() {
+    const overlay = document.createElement('div');
+    overlay.id = 'ultimate-popup';
+    // Estilo en línea rápido para asegurar que se vea bien
+    overlay.style = "position:fixed; inset:0; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:9999;";
+    
+    overlay.innerHTML = `
+        <div style="background:#1e293b; border:3px solid #fbbf24; padding:30px; border-radius:15px; text-align:center; color:white; max-width:300px;">
+            <div style="font-size:40px;">🏆</div>
+            <h2 style="color:#fbbf24; margin:10px 0;">¡CONGRATS!!</h2>
+            <p>You've caught all 6 shinys on this board!</p>
+            <button onclick="this.parentElement.parentElement.remove()" 
+                    style="margin-top:15px; background:#fbbf24; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">
+                CONTINUE
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
 
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
