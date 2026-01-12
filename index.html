@@ -1258,16 +1258,20 @@ async function continueGame() {
     mainMenu.style.display = 'none';
     gameScreen.style.display = 'flex';
     loadingEl.style.display = 'flex';
-    
-    // Iniciar música
+
+    // 🎵 Iniciar música
     playRandomMusic();
 
+    // 🔢 Restaurar datos simples
     score = savedData.score;
     scoreEl.innerText = score;
     pokemonColors = savedData.pokemonColors;
     shinyListEl.innerHTML = savedData.shinyTrackerHTML || "";
 
-    // 1. Recargar los sprites de los Pokémon de la sesión
+    // 🔹 IMPORTANTE: calcular TILE_SIZE ANTES de usarlo
+    resize();
+
+    // 1️⃣ Recargar los sprites de los Pokémon
     pokemonData = [];
     for (const p of savedData.pokemonData) {
         const normal = new Image();
@@ -1276,51 +1280,61 @@ async function continueGame() {
         shiny.crossOrigin = "anonymous";
         normal.src = p.normalSrc;
         shiny.src = p.shinySrc;
+
         await Promise.all([
-            new Promise(r => normal.onload = r), 
+            new Promise(r => normal.onload = r),
             new Promise(r => shiny.onload = r)
         ]);
-        pokemonData.push({ id: p.id, name: p.name, images: { normal, shiny }, cry: p.cry });
+
+        pokemonData.push({
+            id: p.id,
+            name: p.name,
+            images: { normal, shiny },
+            cry: p.cry
+        });
     }
 
-    // 2. Pre-cargar Berries si no están cargadas (Asegura que BERRY_SPRITES existe)
-    if (typeof preloadBerries === 'function') await preloadBerries();
+    // 2️⃣ Pre-cargar Berries
+    if (typeof preloadBerries === 'function') {
+        await preloadBerries();
+    }
 
-    // 3. RECONSTRUIR EL TABLERO (Aquí es donde se recuperan las bayas)
-    board = savedData.board.map(row => row.map(tileData => {
-        // Creamos el objeto base con las coordenadas y estados
-        const tile = {
-            ...tileData,
-            x: tileData.c * TILE_SIZE,
-            y: tileData.r * TILE_SIZE,
-            yOffset: 0,
-            scale: 1,
-            rotation: 0,
-            targetRotation: 0
-        };
+    // 3️⃣ Reconstruir el tablero (YA con TILE_SIZE válido)
+    board = savedData.board.map((row, r) =>
+        row.map((tileData, c) => {
+            const tile = {
+                ...tileData,
+                r,
+                c,
+                xOffset: 0,
+                yOffset: 0,
+                scale: 1,
+                rotation: 0,
+                targetRotation: 0
+            };
 
-        // Asignación de imagen según el tipo de pieza
-        if (tile.isBerry && tile.berryType) {
-            // Es una Baya: Buscamos su imagen en el diccionario global
-            tile.image = BERRY_SPRITES[tile.berryType];
-        } else if (tile.isDitto) {
-            // Es un Ditto (si tienes una imagen específica cargada)
-            tile.image = DITTO_IMAGE; 
-        } else {
-            // Es un Pokémon: Usamos los datos que acabamos de recargar arriba
-            const pInfo = pokemonData[tile.id];
-            if (pInfo) {
-                tile.image = tile.isShiny ? pInfo.images.shiny : pInfo.images.normal;
+            // Asignar imagen correcta
+            if (tile.isBerry && tile.berryType) {
+                tile.image = BERRY_SPRITES[tile.berryType];
+            } else if (tile.isDitto) {
+                tile.image = DITTO_IMAGE;
+            } else {
+                const pInfo = pokemonData[tile.id];
+                if (pInfo) {
+                    tile.image = tile.isShiny
+                        ? pInfo.images.shiny
+                        : pInfo.images.normal;
+                }
             }
-        }
 
-        return tile;
-    }));
+            return tile;
+        })
+    );
 
-    resize(); 
     loadingEl.style.display = 'none';
 
-    if(!gameInitialized) {
+    // 4️⃣ Arrancar el loop solo una vez
+    if (!gameInitialized) {
         gameInitialized = true;
         requestAnimationFrame(renderLoop);
         setInterval(checkIdleTime, 1000);
