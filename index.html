@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1214,8 +1213,18 @@ function openWho() {
 }
 function saveGameState() {
     if (gameOver || pokemonData.length === 0) return;
+
     const gameState = {
-        board: board,
+        // Guardamos el tablero de forma limpia
+        board: board.map(row => row.map(tile => ({
+            id: tile.id,
+            r: tile.r,
+            c: tile.c,
+            isShiny: tile.isShiny,
+            isBerry: tile.isBerry || false,
+            berryType: tile.berryType || null, // Guardamos 'SITRUS', 'ORAN', etc.
+            isDitto: tile.isDitto || false
+        }))),
         score: score,
         pokemonData: pokemonData.map(p => ({
             id: p.id,
@@ -1227,6 +1236,7 @@ function saveGameState() {
         pokemonColors: pokemonColors,
         shinyTrackerHTML: shinyListEl.innerHTML
     };
+
     localStorage.setItem('shinyMatchSave', JSON.stringify(gameState));
     checkSaveFile();
 }
@@ -1248,13 +1258,16 @@ async function continueGame() {
     mainMenu.style.display = 'none';
     gameScreen.style.display = 'flex';
     loadingEl.style.display = 'flex';
+    
+    // Iniciar música
+    playRandomMusic();
 
     score = savedData.score;
     scoreEl.innerText = score;
     pokemonColors = savedData.pokemonColors;
-    shinyListEl.innerHTML = savedData.shinyTrackerHTML;
+    shinyListEl.innerHTML = savedData.shinyTrackerHTML || "";
 
-    // Recargar imágenes para el canvas
+    // 1. Recargar los sprites de los Pokémon de la sesión
     pokemonData = [];
     for (const p of savedData.pokemonData) {
         const normal = new Image();
@@ -1270,8 +1283,41 @@ async function continueGame() {
         pokemonData.push({ id: p.id, name: p.name, images: { normal, shiny }, cry: p.cry });
     }
 
-    board = savedData.board;
-    resize(); // Ajustar tamaño al cargar
+    // 2. Pre-cargar Berries si no están cargadas (Asegura que BERRY_SPRITES existe)
+    if (typeof preloadBerries === 'function') await preloadBerries();
+
+    // 3. RECONSTRUIR EL TABLERO (Aquí es donde se recuperan las bayas)
+    board = savedData.board.map(row => row.map(tileData => {
+        // Creamos el objeto base con las coordenadas y estados
+        const tile = {
+            ...tileData,
+            x: tileData.c * TILE_SIZE,
+            y: tileData.r * TILE_SIZE,
+            yOffset: 0,
+            scale: 1,
+            rotation: 0,
+            targetRotation: 0
+        };
+
+        // Asignación de imagen según el tipo de pieza
+        if (tile.isBerry && tile.berryType) {
+            // Es una Baya: Buscamos su imagen en el diccionario global
+            tile.image = BERRY_SPRITES[tile.berryType];
+        } else if (tile.isDitto) {
+            // Es un Ditto (si tienes una imagen específica cargada)
+            tile.image = DITTO_IMAGE; 
+        } else {
+            // Es un Pokémon: Usamos los datos que acabamos de recargar arriba
+            const pInfo = pokemonData[tile.id];
+            if (pInfo) {
+                tile.image = tile.isShiny ? pInfo.images.shiny : pInfo.images.normal;
+            }
+        }
+
+        return tile;
+    }));
+
+    resize(); 
     loadingEl.style.display = 'none';
 
     if(!gameInitialized) {
@@ -2181,102 +2227,136 @@ function toggleMute() {
     else bgAudio.play().catch(() => {});
   }
 }
+/**
+ * GESTIÓN DE MÚSICA Y ESTADOS DE PANTALLA
+ */
+
 function updateMusicState() {
+    // Si no hay objeto de audio, no hacemos nada
     if (!bgAudio) return;
 
-    // Si el tablero no está visible, paramos la música
-    if (document.getElementById('game-screen').style.display === 'none') {
-        bgAudio.pause();
-        bgAudio.currentTime = 0;
-    } else if (!isMuted) {
+    const isGameVisible = gameScreen && window.getComputedStyle(gameScreen).display !== 'none';
+    
+    // Si la pantalla de juego no es visible, o el juego terminó, paramos
+    if (!isGameVisible || gameOver) {
+        stopMusic();
+    } else if (!isMuted && bgAudio.paused) {
+        // Si vuelve a ser visible y no está silenciado, reanudar
         bgAudio.play().catch(() => {});
     }
 }
+
+// Inicialización segura del Observer
+// Esto detecta cuando cambias de "Pantalla Principal" a "Juego"
+const observer = new MutationObserver(() => {
+    updateMusicState();
+});
+
+if (gameScreen) {
+    observer.observe(gameScreen, { 
+        attributes: true, 
+        attributeFilter: ['style'] 
+    });
+}
+
+let lastSongIndex = -1;
+
+function playRandomMusic() {
+    if (isMuted) return;
+    if (bgAudio) { bgAudio.pause(); bgAudio.onended = null; }
+
+    let randomIndex;
+    // Bucle para asegurar que la nueva canción no sea la misma que la anterior
+    do {
+        randomIndex = Math.floor(Math.random() * musicFiles.length);
+    } while (randomIndex === lastSongIndex && musicFiles.length > 1);
+
+    lastSongIndex = randomIndex;
+    
+    bgAudio = new Audio(musicFiles[randomIndex]);
+    bgAudio.loop = false;
+    bgAudio.volume = 0.3;
+    bgAudio.onended = () => playRandomMusic();
+    bgAudio.play().catch(() => {});
+}
+
+function stopMusic() {
+    if (bgAudio) {
+        bgAudio.pause();
+        bgAudio.currentTime = 0;
+        bgAudio = null;
+    }
+}
+
+/**
+ * CONTINUAR PARTIDA (CORREGIDA)
+ */
+function continueBoard() {
+    gameOverOverlay.style.display = 'none';
+    gameScreen.style.display = 'flex';
+    
+    // REINICIAR MÚSICA al continuar si no hay una sonando
+    if (!bgAudio && !isMuted) {
+        playRandomMusic();
+    }
+    
+    isAnimating = false;
+    requestAnimationFrame(renderLoop);
+}
+
+/**
+ * UTILIDADES VISUALES Y AYUDAS
+ */
 
 function spawnSparkle(tile) {
     const drawX = tile.c * TILE_SIZE + TILE_SIZE/2;
     const drawY = tile.r * TILE_SIZE + TILE_SIZE/2;
     sparkles.push({
-        x: drawX + (Math.random()-0.5)*TILE_SIZE*0.6,
-        y: drawY + (Math.random()-0.5)*TILE_SIZE*0.6,
-        radius: Math.random()*2 + 1,
+        x: drawX + (Math.random()-0.5) * TILE_SIZE * 0.6,
+        y: drawY + (Math.random()-0.5) * TILE_SIZE * 0.6,
+        radius: Math.random() * 2 + 1,
         alpha: 1,
-        decay: Math.random()*0.03 + 0.01
+        decay: Math.random() * 0.03 + 0.01
     });
 }
 
 function findFirstHint() {
     for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
-            // Check Horizontal: si (r,c) y (r, c+1) pueden generar match
-            if (c < GRID_SIZE - 1 && checkPotential(r, c, r, c + 1)) {
-                // Devolvemos solo la de la izquierda (o podrías usar Math.random() para variar)
-                return board[r][c]; 
-            }
-            // Check Vertical: si (r,c) y (r+1, c) pueden generar match
-            if (r < GRID_SIZE - 1 && checkPotential(r, c, r + 1, c)) {
-                // Devolvemos solo la de arriba
-                return board[r][c];
-            }
+            // Check Horizontal y Vertical para posibles movimientos
+            if (c < GRID_SIZE - 1 && checkPotential(r, c, r, c + 1)) return board[r][c]; 
+            if (r < GRID_SIZE - 1 && checkPotential(r, c, r + 1, c)) return board[r][c];
         }
     }
     return null;
 }
 
-/**
- * Gestiona la animación de sugerencia por inactividad.
- */
 function checkIdleTime() {
     const IDLE_THRESHOLD = 10000; // 10 segundos
-    const isIdle = (Date.now() - lastMoveTime) > IDLE_THRESHOLD;
-
-    // Si el usuario se movió, reseteamos la referencia y salimos
-    if (!isIdle) {
+    if ((Date.now() - lastMoveTime) < IDLE_THRESHOLD) {
         idleRotatingTile = null;
         return;
     }
 
-    // Si ya hay una pieza rotando, no buscamos más
     if (idleRotatingTile) return;
 
-    // Buscamos solo UNA sugerencia
     const hintTile = findFirstHint();
-
     if (hintTile) {
         idleRotatingTile = hintTile;
-        // Aplicamos la rotación (360 grados en radianes)
+        // Rotación de 360 grados para llamar la atención
         idleRotatingTile.targetRotation = idleRotatingTile.rotation + (2 * Math.PI);
     }
 }
-function continueBoard() {
-    // Oculta el overlay del mensaje
-    gameOverOverlay.style.display = 'none';
-    
-    // Asegúrate de que el tablero siga visible
-    gameScreen.style.display = 'flex';
-    
-    // Resetea cualquier estado de animación si fuese necesario
-    isAnimating = false;
-    
-    // Vuelve a actualizar el canvas por si algo quedó parado
-    requestAnimationFrame(renderLoop);
-}
 
-function checkAllShiniesCollected() {
-    if (allShiniesMessageShown) return; // si ya se mostró, no hacemos nada
+/**
+ * MODALES Y GUÍAS
+ */
 
-    // Contamos solo los shinies de la partida actual
-    const capturedThisBoard = new Set();
-    for (let i = 0; i < finalShinyListEl.children.length; i++) {
-        const src = finalShinyListEl.children[i].src;
-        capturedThisBoard.add(src);
-    }
-
-}
 function openBerryGuide() {
     const guideList = document.getElementById('berry-guide-list');
+    if (!guideList) return;
+    
     guideList.innerHTML = "";
-
     const descriptions = {
         'CHERI': 'Clears the entire COLUMN.',
         'CHESTO': 'Clears the entire ROW.',
@@ -2291,68 +2371,38 @@ function openBerryGuide() {
     BERRY_TYPES.forEach(type => {
         const row = document.createElement('div');
         row.className = 'berry-row';
-        
-        const img = new Image();
-        img.src = BERRY_SPRITES[type].src;
-        
-        const info = document.createElement('div');
-        info.className = 'berry-info';
-        info.innerHTML = `<h4>${type} BERRY</h4><p>${descriptions[type]}</p>`;
-        
-        row.appendChild(img);
-        row.appendChild(info);
+        row.innerHTML = `
+            <img src="${BERRY_SPRITES[type].src}" alt="${type}">
+            <div class="berry-info">
+                <h4>${type} BERRY</h4>
+                <p>${descriptions[type]}</p>
+            </div>
+        `;
         guideList.appendChild(row);
     });
-
     document.getElementById('berry-modal').style.display = 'flex';
 }
-function openTutorial() {
-    tutorialModal.style.display = 'flex';
-}
-// Update your closeModals to include this new one
+
 function closeModals() {
-    document.getElementById('dex-modal').style.display = 'none';
-    document.getElementById('who-modal').style.display = 'none';
-    document.getElementById('berry-modal').style.display = 'none';
-    document.getElementById('tutorial-modal').style.display = 'none';
-    const regionModal = document.getElementById('region-modal');
-    if (regionModal) regionModal.style.display = 'none';
-}
-function playRandomMusic() {
-  if (bgAudio) {
-    bgAudio.pause();
-    bgAudio = null;
-  }
-
-  if (isMuted) return; // no reproducir si está silenciado
-
-  const randomIndex = Math.floor(Math.random() * musicFiles.length);
-  const file = musicFiles[randomIndex];
-
-  bgAudio = new Audio(file);
-  bgAudio.loop = true;
-  bgAudio.volume = 0.3;
-
-  bgAudio.play().catch(err => {
-    console.warn("No se pudo reproducir la música automáticamente. El usuario debe interactuar con la página primero.", err);
-  });
-}
-function stopMusic() {
-  if (bgAudio) {
-    bgAudio.pause();
-    bgAudio.currentTime = 0;
-    bgAudio = null;
-  }
+    const modals = ['dex-modal', 'who-modal', 'berry-modal', 'tutorial-modal', 'region-modal'];
+    modals.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 }
 
-// Detecta automáticamente cuando el tablero desaparece
-const observer = new MutationObserver(() => {
-    const gameScreen = document.getElementById('game-screen');
-    if (!gameScreen) return;
-    const visible = window.getComputedStyle(gameScreen).display !== 'none';
-    if (!visible) stopMusic();
+// Eventos globales
+window.addEventListener('resize', resize);
+window.addEventListener('load', checkSaveFile);
+
+// Pausar música si el usuario cambia de pestaña del navegador
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        if (bgAudio) bgAudio.pause();
+    } else {
+        updateMusicState();
+    }
 });
-
 
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
