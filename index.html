@@ -577,6 +577,68 @@ hr {
     from { transform: translate(-60%, -50%) rotate(-5deg); }
     to { transform: translate(-40%, -50%) rotate(5deg); }
 }
+
+#give-up-btn {
+    pointer-events: auto; /* Re-enables clicks for the button itself */
+    background: #ef4444; /* Red color */
+    color: white;
+    border: 2px solid #7f1d1d;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    transition: transform 0.1s, background 0.2s;
+    box-shadow: 0 4px 0 #991b1b;
+}
+
+#give-up-btn:hover {
+    background: #dc2626;
+}
+
+#give-up-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #991b1b;
+}
+.shiny-scroll-container {
+    background: rgba(15, 23, 42, 0.6); /* Dark semi-transparent background */
+    border: 2px solid #334155;
+    border-radius: 12px;
+    padding: 10px;
+    
+    /* SCROLL LOGIC */
+    max-height: 180px; /* Adjust this height based on your preference */
+    overflow-y: auto;  /* Vertical scroll only */
+    overflow-x: hidden;
+}
+
+/* Ensure the list inside uses a grid layout for the icons */
+#final-shiny-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 icons per row */
+    gap: 12px;
+    justify-items: center;
+}
+
+/* Custom scrollbar for a "gamer" look */
+.shiny-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+.shiny-scroll-container::-webkit-scrollbar-thumb {
+    background: #fbbf24; /* Yellow like a shiny star */
+    border-radius: 10px;
+}
+.shiny-scroll-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Style the icons inside the scroll box */
+#final-shiny-list img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.3));
+}
     </style>
 </head>
 <body>
@@ -622,9 +684,11 @@ hr {
             <p style="font-size: 20px; font-weight: 800; margin-bottom: 10px;">SCORE: <span id="final-streak">0</span></p>
             
             <div id="game-over-shinies" style="margin-bottom: 20px;">
-                <div style="font-size: 10px; color: #94a3b8; font-weight: 800; margin-bottom: 10px;">SHINIES COLLECTED</div>
-                <div id="final-shiny-list"></div>
-            </div>
+    <div style="font-size: 10px; color: #94a3b8; font-weight: 800; margin-bottom: 10px;">SHINIES COLLECTED</div>
+    <div class="shiny-scroll-container">
+        <div id="final-shiny-list"></div>
+    </div>
+</div>
 
             <div class="btn-group" style="width: 220px;">
                 <button class="menu-btn mode-play" onclick="startGame()">Try Again</button>
@@ -653,6 +717,7 @@ hr {
 <button class="menu-btn mode-dex" style="width: 40px; height: 40px; border-radius: 50%; font-size: 18px;" onclick="openWho()">❓</button>
                 <button id="muteBtn" class="mute-btn" onclick="toggleMute()">🔊</button>
                 <button class="quit-btn" onclick="quitAndSave()">✕</button>
+                <button id="give-up-btn" class="give-up-btn" onclick="giveUp()">🏳️ Give Up</button>
         
             </div>
         </div>
@@ -834,18 +899,6 @@ const regionRanges = {
     }
 };
 
-const REGION_THEMES = {
-    'Kanto': { primary: '#ef4444', secondary: '#991b1b', text: '#ffffff', border: '#fbbf24' }, // Rojo/Oro
-    'Johto': { primary: '#8b5cf6', secondary: '#4c1d95', text: '#ffffff', border: '#e5e7eb' }, // Plata/Cristal
-    'Hoenn': { primary: '#10b981', secondary: '#064e3b', text: '#ffffff', border: '#3b82f6' }, // Esmeralda/Zafiro
-    'Sinnoh': { primary: '#3b82f6', secondary: '#1e3a8a', text: '#ffffff', border: '#94a3b8' }, // Diamante/Perla
-    'Unova': { primary: '#4b5563', secondary: '#111827', text: '#ffffff', border: '#f3f4f6' }, // Blanco/Negro
-    'Kalos': { primary: '#ec4899', secondary: '#831843', text: '#ffffff', border: '#60a5fa' }, // X/Y
-    'Alola': { primary: '#f59e0b', secondary: '#78350f', text: '#ffffff', border: '#facc15' }, // Sol/Luna
-    'Galar': { primary: '#0ea5e9', secondary: '#0c4a6e', text: '#ffffff', border: '#e11d48' }, // Espada/Escudo
-    'Paldea': { primary: '#a855f7', secondary: '#581c87', text: '#ffffff', border: '#f97316' }, // Escarlata/Púrpura
-    'Default': { primary: '#1e293b', secondary: '#0f172a', text: '#ffffff', border: '#fbbf24' }
-};
 
 async function selectRegion(regionKey) {
     // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
@@ -2507,79 +2560,113 @@ async function downloadScoreImage() {
     canvasRef.width = 600;
     canvasRef.height = 450;
 
-    // Obtener el tema visual según la región activa
-    // (Asegúrate de que 'currentRegionName' sea la variable donde guardas el nombre de la región)
-    const theme = REGION_THEMES[currentRegionName] || REGION_THEMES['Default'];
-
-    // 1. Fondo: Degradado basado en la región
-    const gradient = ctx.createLinearGradient(0, 0, 0, 450);
-    gradient.addColorStop(0, theme.primary);
-    gradient.addColorStop(1, theme.secondary);
+    // 1. Background: Parchment/Paper Aesthetic
+    const gradient = ctx.createLinearGradient(0, 0, 600, 450);
+    gradient.addColorStop(0, '#fdfcf0'); 
+    gradient.addColorStop(1, '#f2eecb'); 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 600, 450);
 
-    // 2. Borde temático
-    ctx.strokeStyle = theme.border;
-    ctx.lineWidth = 10;
-    ctx.strokeRect(5, 5, 590, 440);
+    // 2. Decorative Diploma Borders
+    ctx.strokeStyle = '#c5a059'; 
+    ctx.lineWidth = 15;
+    ctx.strokeRect(10, 10, 580, 430);
+    ctx.strokeStyle = '#5d4037';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(25, 25, 550, 400);
 
-    // 3. Texto del Título
-    ctx.fillStyle = theme.border; // Usamos el color del borde para resaltar el título
-    ctx.font = 'bold 36px "Segoe UI", Arial, sans-serif';
+    // 3. Header Text
+    ctx.fillStyle = '#5d4037'; 
     ctx.textAlign = 'center';
-    ctx.fillText(`SHINY MATCH: ${currentRegionName.toUpperCase()}`, 300, 70);
+    ctx.font = 'italic bold 24px Georgia, "Times New Roman", serif';
+    ctx.fillText('This certifies that you have completed a', 300, 70);
 
-    // 4. Puntuación Principal
-    ctx.fillStyle = theme.text;
-    ctx.font = 'bold 80px "Segoe UI", Arial, sans-serif';
-    ctx.fillText(score.toLocaleString(), 300, 160);
-    
-    ctx.font = 'bold 18px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('TOTAL SCORE', 300, 190);
+    // 4. Main Title
+    ctx.font = 'bold 50px Georgia, serif';
+    ctx.fillText('SHINY MATCH', 300, 130);
 
-    // 5. Contador de Shinies
-    const totalShinies = document.querySelectorAll('#shiny-list img').length;
-    ctx.fillStyle = '#fde047'; // Amarillo brillante para los destellos
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(`✨ SHINIES CAPTURED: ${totalShinies} ✨`, 300, 240);
+    // 5. Score Section
+    ctx.font = '20px Georgia, serif';
+    ctx.fillText('With a record-breaking total score of:', 300, 180);
+    ctx.fillStyle = '#8b6b23'; 
+    ctx.font = 'bold 75px "Times New Roman", serif';
+    ctx.fillText(score.toLocaleString(), 300, 260);
 
-    // 6. Dibujar iconos de Pokémon (con círculo de fondo suave)
-    const iconSize = 70;
-    const spacing = 85;
+    // 6. Shiny Counter "Seal"
+    const totalShinies = document.querySelectorAll('#final-shiny-list img').length;
+    ctx.fillStyle = '#5d4037';
+    ctx.font = 'italic bold 22px Georgia, serif';
+    ctx.fillText(`Master of ${totalShinies} Shiny Discoveries`, 300, 310);
+
+    // 7. Pokemon Icons (With Shiny Check and Shimmer)
+    const iconSize = 65;
+    const spacing = 80;
     const startX = 300 - ((spacing * 5 + iconSize) / 2);
-    const startY = 300;
+    const startY = 330;
 
     for (let i = 0; i < 6; i++) {
         if (pokemonData[i]) {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = pokemonData[i].images.normal.src;
-
-            try {
-                // Fondo circular para los iconos adaptado al tema
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.beginPath();
-                ctx.arc(startX + (i * spacing) + iconSize/2, startY + iconSize/2, 38, 0, Math.PI*2);
-                ctx.fill();
+            await new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
                 
-                // Dibujar el pokemon
-                ctx.drawImage(img, startX + (i * spacing), startY, iconSize, iconSize);
-            } catch (e) {
-                console.error("Error drawing icon", e);
-            }
+                // CHECK IF SHINY: Verify if this ID exists in your caughtShinies global object
+                const pId = pokemonData[i].id;
+                const effectiveId = (typeof FORM_OVERRIDES !== 'undefined' && FORM_OVERRIDES[pId]) || pId;
+                const isAlreadyCaughtShiny = !!caughtShinies[effectiveId];
+
+                img.onload = () => {
+                    const xPos = startX + (i * spacing);
+                    const yPos = startY;
+
+                    // If it's a shiny, draw a golden shimmer "glow" behind it
+                    if (isAlreadyCaughtShiny) {
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(251, 191, 36, 0.2)';
+                        ctx.beginPath();
+                        ctx.arc(xPos + iconSize/2, yPos + iconSize/2, 35, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Add sparkle stars
+                        ctx.fillStyle = '#fbbf24';
+                        const drawStar = (cx, cy, spikes, outer, inner) => {
+                            let rot = Math.PI/2*3, x = cx, y = cy, step = Math.PI/spikes;
+                            ctx.beginPath(); ctx.moveTo(cx, cy - outer);
+                            for(let j=0; j<spikes; j++){
+                                x=cx+Math.cos(rot)*outer; y=cy+Math.sin(rot)*outer; ctx.lineTo(x,y); rot+=step;
+                                x=cx+Math.cos(rot)*inner; y=cy+Math.sin(rot)*inner; ctx.lineTo(x,y); rot+=step;
+                            }
+                            ctx.lineTo(cx, cy-outer); ctx.closePath(); ctx.fill();
+                        };
+                        drawStar(xPos + 10, yPos + 10, 4, 5, 2);
+                        drawStar(xPos + iconSize - 5, yPos + 15, 4, 4, 2);
+                        ctx.restore();
+                    }
+
+                    // Draw the sprite (Shadow for diploma look)
+                    ctx.shadowColor = "rgba(0,0,0,0.2)";
+                    ctx.shadowBlur = 5;
+                    ctx.drawImage(img, xPos, yPos, iconSize, iconSize);
+                    ctx.shadowBlur = 0;
+                    resolve();
+                };
+                img.onerror = resolve;
+
+                // Set source to Shiny if caught, otherwise Normal
+                img.src = isAlreadyCaughtShiny ? pokemonData[i].images.shiny.src : pokemonData[i].images.normal.src;
+            });
         }
     }
 
-    // 7. Marca de agua
-    ctx.font = 'italic 14px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText('https://xoelpr03.github.io/pokejuegomatch/', 300, 420);
+    // 8. Footer Watermark
+    ctx.font = '12px "Times New Roman", serif';
+    ctx.fillStyle = 'rgba(93, 64, 55, 0.6)';
+    ctx.fillText('play at: https://xoelpr03.github.io/pokejuegomatchAPP/', 300, 415);
 
-    // 8. Descarga
+    // 9. Download
     const dataUrl = canvasRef.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `PokeMatch_${currentRegionName}_${score}.png`;
+    link.download = `ShinyMatch_Diploma_${score}.png`;
     link.href = dataUrl;
     link.click();
 }
@@ -2617,7 +2704,19 @@ function initMusicPlaylist() {
     shuffledPlaylist = shuffleArray(musicFiles);
     currentSongIndex = 0;
 }
-
+function giveUp() {
+    // Optional: Ask for confirmation so players don't click it by accident
+    const confirmChoice = confirm("Are you sure you want to end this run?");
+    
+    if (confirmChoice) {
+        // Stop the game loop and music
+        gameOver = true;
+        stopMusic();
+        
+        // Use your existing endGame logic to show the overlay and final score
+        endGame();
+    }
+}
 window.addEventListener('resize', () => { resize(); });
 window.addEventListener('load', checkSaveFile);
 </script>
