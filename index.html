@@ -738,6 +738,7 @@ hr {
     </div>
     <div id="tutorial-modal" class="modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
     <div class="modal-content" style="background: #1e293b; border: 2px solid #475569; border-radius: 15px; width: 100%; max-width: 400px; padding: 20px; color: white;">
+
         <h2 style="color: #eab308; margin-top: 0; text-align: center;">🎮 How To Play?</h2>
         
         <div style="max-height: 60vh; overflow-y: auto; text-align: left; font-size: 14px; line-height: 1.5;">
@@ -898,7 +899,15 @@ const regionRanges = {
         extras: REGIONAL_IDS.filter(id => id >= 10250) 
     }
 };
+function openHowToPlay() {
+    const modal = document.getElementById('howToPlayModal');
+    if (modal) modal.style.display = 'flex';
+}
 
+function closeHowToPlay() {
+    const modal = document.getElementById('howToPlayModal');
+    if (modal) modal.style.display = 'none';
+}
 
 async function selectRegion(regionKey) {
     // --- NUEVO: LIMPIEZA TOTAL DE PARTIDA ANTERIOR ---
@@ -1010,6 +1019,20 @@ function openRegionMenu() {
         console.error("Error: No se encontró el elemento 'region-modal' en el HTML.");
     }
 }
+function openTutorial() {
+    const modal = document.getElementById('tutorial-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeTutorial() {
+    const modal = document.getElementById('tutorial-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 function activateSitrusTimer() {
     const timerEl = document.getElementById('multiplier-timer');
     const countEl = document.getElementById('timer-count');
@@ -2722,4 +2745,3 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
