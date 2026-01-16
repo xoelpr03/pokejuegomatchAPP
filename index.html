@@ -362,7 +362,47 @@
     box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
     animation: pulse-glow 2s infinite ease-in-out;
 }
+#leppa-timer {
+    background: rgba(139, 92, 246, 0.2); /* Base púrpura translúcida */
+    border: 2px solid #a855f7;
+    padding: 8px 18px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    color: #e9d5ff;
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.8);
+    box-shadow: 
+        0 0 20px rgba(168, 85, 247, 0.4),
+        inset 0 0 10px rgba(139, 92, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+    animation: leppa-float 3s infinite ease-in-out, leppa-border-glow 2s infinite alternate;
+}
 
+/* Efecto de brillo cambiante en el borde */
+@keyframes leppa-border-glow {
+    from {
+        border-color: #a855f7;
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+    to {
+        border-color: #6366f1; /* Cambia a un tono más azulado */
+        box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
+    }
+}
+
+/* Efecto de levitación suave para el timer mismo */
+@keyframes leppa-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-4px) scale(1.02); }
+}
+
+/* Estilo para el número del contador dentro del Leppa timer */
+#leppa-count {
+    font-family: 'Courier New', monospace;
+    font-size: 1.1em;
+    font-weight: 900;
+    color: #fff;
+}
 #timer-count {
     font-variant-numeric: tabular-nums; /* Prevents text jumping when numbers change */
     color: #fff;
@@ -723,12 +763,19 @@ hr {
         </div>
 
         <canvas id="gameCanvas"></canvas>
+        
         <div id="multiplier-timer" style="display: none; font-size: 14px; font-weight: 900; color: #fbbf24; margin-bottom: 5px;">
         ✨ x2 POINTS: <span id="timer-count">60</span>s
     </div>
     <div id="lum-timer" class="timer-box lum-style" style="display: none;">
         ✨ SHINY BOOST: <span id="lum-count">10</span>s
     </div>
+    <div id="active-buffs">
+    <div id="leppa-timer" style="display: none;">
+        🌀 INVERTED: <span id="leppa-count">30</span>s
+    </div>
+</div>
+    
         <div id="status">SWIPE TO MATCH</div>
 
         <div id="shiny-tracker">
@@ -845,6 +892,11 @@ let pokemonData = [];
 let pokemonColors = [];
 let idleRotatingTile = null;
 let allShiniesMessageShown = false;
+let gravityDirection = 1; // 1 = Abajo, -1 = Arriba
+let leppaTimer = null;
+let leppaActive = false;
+let leppaTimeout = null;
+let leppaTimerEl = document.getElementById('leppa-timer'); // Crea un div en HTML si no existe
 const colors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#ec4899"];
 const REGIONAL_IDS = [10091, 10092, 10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107, 10108, 10109, 10110, 10111, 10112, 10113, 10114, 10115, 10161, 10162, 10163, 10164, 10165, 10166, 10167, 10168, 10169, 10170, 10171, 10172, 10173, 10174, 10175, 10176, 10177, 10179, 10180, 10229, 10230, 10231, 10232, 10233, 10234, 10235, 10236, 10237, 10238, 10239, 10240, 10241, 10242, 10243, 10244, 10250, 10253];
 const DITTO_CRY = new Audio('https://raw.githubusercontent.com/PokeAPI/stock-pokemon-cries/master/cries/pokemon/latest/132.ogg');
@@ -988,7 +1040,7 @@ function updateBackground(region) {
 // Configuración de entrada y prevención de scroll
 canvas.style.touchAction = 'none';
 canvas.style.userSelect = 'none';
-const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS', 'ASPEAR', 'LUM'];
+const BERRY_TYPES = ['CHERI', 'CHESTO', 'PECHA', 'ORAN', 'RAWST', 'SITRUS', 'ASPEAR', 'LUM', 'LEPPA'];
 const BERRY_SPRITES = {}
 const BERRY_LIST = {
     'CHERI': 'cheri-berry',
@@ -998,7 +1050,8 @@ const BERRY_LIST = {
     'RAWST': 'rawst-berry',
     'SITRUS': 'sitrus-berry',
     'ASPEAR': 'aspear-berry',
-    'LUM': 'lum-berry'
+    'LUM': 'lum-berry',
+    'LEPPA': 'leppa-berry'
 };
 
 let allPokemonList = [];
@@ -1903,27 +1956,39 @@ async function processMatches() {
             return { r, c };
         }));
 
-        // 5. Gravedad: mover piezas hacia abajo
-        for (let c = 0; c < GRID_SIZE; c++) {
-            let empty = 0;
-            for (let r = GRID_SIZE - 1; r >= 0; r--) {
-                if (board[r][c].isMatch) {
-                    empty++;
-                } else if (empty > 0) {
-                    board[r + empty][c] = { ...board[r][c], yOffset: -empty * TILE_SIZE, isMatch: false, scale: 1 };
-                    board[r][c] = { isMatch: true };
-                }
-            }
-            // Crear nuevas piezas en la parte superior
-            for (let r = 0; r < empty; r++) {
-                board[r][c] = createTile(Math.floor(Math.random() * 6), true);
-                board[r][c].yOffset = -empty * TILE_SIZE;
-                if (board[r][c].isShiny) {
-                    playSparkle();
-                    board[r][c].hasSpawned = true;
-                }
+        // Dentro de processMatches (Paso 5: Gravedad)
+for (let c = 0; c < GRID_SIZE; c++) {
+    let empty = 0;
+    
+    // Si la gravedad es NORMAL (Hacia abajo)
+    if (gravityDirection === 1) {
+        for (let r = GRID_SIZE - 1; r >= 0; r--) {
+            if (board[r][c].isMatch) empty++;
+            else if (empty > 0) {
+                board[r + empty][c] = { ...board[r][c], yOffset: -empty * TILE_SIZE, isMatch: false };
+                board[r][c] = { isMatch: true };
             }
         }
+        for (let r = 0; r < empty; r++) {
+            board[r][c] = createTile(Math.floor(Math.random() * 6), true);
+            board[r][c].yOffset = -empty * TILE_SIZE;
+        }
+    } 
+    // Si la gravedad es INVERTIDA (Hacia arriba)
+    else {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            if (board[r][c].isMatch) empty++;
+            else if (empty > 0) {
+                board[r - empty][c] = { ...board[r][c], yOffset: empty * TILE_SIZE, isMatch: false };
+                board[r][c] = { isMatch: true };
+            }
+        }
+        for (let r = GRID_SIZE - 1; r > GRID_SIZE - 1 - empty; r--) {
+            board[r][c] = createTile(Math.floor(Math.random() * 6), true);
+            board[r][c].yOffset = empty * TILE_SIZE;
+        }
+    }
+}
 
         // 6. Esperar a que las piezas caigan visualmente
         await animateFalling();
@@ -2043,10 +2108,64 @@ function getBerryPattern(berry, r, c) {
             case 'LUM': // Increase shiny chance
     activateLumBerry();
     break;
+    case 'LEPPA':
+    activateLeppaEffect();
+    break;
     }
     return pattern;
 }
+let leppaInterval = null;
 
+function activateLeppaEffect() {
+    gravityDirection = -1; // Invertir gravedad
+    
+    const timerEl = document.getElementById('leppa-timer');
+    const countEl = document.getElementById('leppa-count');
+
+    // 1. Mostrar el elemento y resetear UI
+    timerEl.style.display = 'block';
+    let timeLeft = 30;
+    countEl.innerText = timeLeft;
+
+    // 2. Limpiar CUALQUIER proceso previo (Evita que el tiempo corra más rápido)
+    if (leppaInterval) clearInterval(leppaInterval);
+    if (leppaTimer) clearTimeout(leppaTimer);
+
+    // 3. Iniciar el intervalo del segundero (Visual)
+    leppaInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft >= 0) {
+            countEl.innerText = timeLeft;
+        }
+        
+        // Efecto visual: si queda poco tiempo, parpadea en rojo
+        if (timeLeft <= 5) {
+            countEl.style.color = "#ff4d4d";
+        } else {
+            countEl.style.color = "#fff";
+        }
+    }, 1000);
+
+    // 4. Iniciar el temporizador de finalización (Lógica)
+    leppaTimer = setTimeout(() => {
+        finishLeppaEffect();
+    }, 30000);
+}
+
+function finishLeppaEffect() {
+    gravityDirection = 1; // Gravedad normal
+    
+    const timerEl = document.getElementById('leppa-timer');
+    if (timerEl) timerEl.style.display = 'none';
+    
+    if (leppaInterval) clearInterval(leppaInterval);
+    
+    statusEl.innerText = "GRAVITY NORMALIZED";
+    statusEl.classList.remove('shiny-alert');
+    
+    leppaTimer = null;
+    leppaInterval = null;
+}
 
 async function animateShrink(matches) {
     const duration = 250; const startTime = Date.now();
@@ -2062,22 +2181,28 @@ async function animateShrink(matches) {
 }
 
 async function animateFalling() {
-    const duration = 300; const startTime = Date.now();
+    const duration = 300;
     return new Promise(resolve => {
         function anim() {
-            const progress = Math.min((Date.now() - startTime) / duration, 1);
             let stillMoving = false;
             for (let r = 0; r < GRID_SIZE; r++) {
                 for (let c = 0; c < GRID_SIZE; c++) {
-                    if (board[r][c].yOffset < 0) {
-                        board[r][c].yOffset += (TILE_SIZE * 0.12);
-                        if (board[r][c].yOffset > 0) board[r][c].yOffset = 0;
+                    const t = board[r][c];
+                    if (t.yOffset !== 0) {
                         stillMoving = true;
+                        // Si el offset es negativo, la pieza viene de arriba. Si es positivo, de abajo.
+                        if (t.yOffset < 0) {
+                            t.yOffset = Math.min(0, t.yOffset + (TILE_SIZE * 0.15));
+                        } else {
+                            t.yOffset = Math.max(0, t.yOffset - (TILE_SIZE * 0.15));
+                        }
                     }
                 }
             }
-            if (stillMoving) requestAnimationFrame(anim); else resolve();
-        } anim();
+            if (stillMoving) requestAnimationFrame(anim);
+            else resolve();
+        }
+        anim();
     });
 }
 
@@ -2216,13 +2341,14 @@ function isShinyOnBoard() { return board.some(row => row.some(tile => tile.isShi
 function playSparkle() { if (!isMuted) { SHINY_SOUND.currentTime = 0; SHINY_SOUND.play().catch(()=>{}); } }
 function resetToMenu() {
   resetSitrusEffect();
+  gravityDirection = 1;
   stopMusic(); // <--- esto para la música
   gameScreen.style.display = 'none';
   mainMenu.style.display = 'block';
   checkSaveFile();
 }
 
-function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOverlay.style.display = 'flex'; localStorage.removeItem('shinyMatchSave'); checkSaveFile(); }
+function endGame() { gameOver = true; finalScoreEl.innerText = score; gameOverOverlay.style.display = 'flex'; localStorage.removeItem('shinyMatchSave'); checkSaveFile(); gravityDirection = 1;}
 function resetSitrusEffect() {
     // Detiene el intervalo del cronómetro si existe
     if (typeof multiplierInterval !== 'undefined' && multiplierInterval) {
@@ -2538,7 +2664,8 @@ function openBerryGuide() {
         'RAWST': 'Clears tiles in an X-SHAPED diagonal.',
         'SITRUS': 'DOUBLE POINTS for 60 seconds!',
         'ASPEAR': 'Clears the entire ROW and COLUMN.',
-        'LUM': 'Increases SHINY CHANCE for 10 seconds!'
+        'LUM': 'Increases SHINY CHANCE for 10 seconds!',
+        'LEPPA': 'Inverts GRAVITY for 30 seconds!'
     };
 
     BERRY_TYPES.forEach(type => {
@@ -2745,4 +2872,3 @@ window.addEventListener('load', checkSaveFile);
 </script>
 </body>
 </html>
-
