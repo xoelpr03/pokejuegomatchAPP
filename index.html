@@ -1972,6 +1972,7 @@ for (let c = 0; c < GRID_SIZE; c++) {
         for (let r = 0; r < empty; r++) {
             board[r][c] = createTile(Math.floor(Math.random() * 6), true);
             board[r][c].yOffset = -empty * TILE_SIZE;
+            if (board[r][c].isShiny) playSparkle();
         }
     } 
     // Si la gravedad es INVERTIDA (Hacia arriba)
@@ -1986,6 +1987,7 @@ for (let c = 0; c < GRID_SIZE; c++) {
         for (let r = GRID_SIZE - 1; r > GRID_SIZE - 1 - empty; r--) {
             board[r][c] = createTile(Math.floor(Math.random() * 6), true);
             board[r][c].yOffset = empty * TILE_SIZE;
+            if (board[r][c].isShiny) playSparkle();
         }
     }
 }
@@ -2018,26 +2020,6 @@ function showComboText(multiplier, x, y) {
     ghost.style.top = `${y + offY}px`;
     
     document.body.appendChild(ghost);
-    setTimeout(() => ghost.remove(), 1200);
-}
-// Función para crear el elemento flotante x2, x3...
-function showComboText(multiplier, x, y) {
-    const ghost = document.createElement('div');
-    ghost.className = 'combo-ghost';
-    if (multiplier === 5) ghost.classList.add('max-ghost');
-    
-    ghost.innerText = `x${multiplier}`;
-    
-    // Posicionamos el fantasma en las coordenadas exactas del match
-    // Sumamos un pequeño ajuste aleatorio para que si hay varios combos se dispersen
-    const randomOffsetX = (Math.random() - 0.5) * 30;
-    const randomOffsetY = (Math.random() - 0.5) * 30;
-    
-    ghost.style.left = `${x + randomOffsetX}px`;
-    ghost.style.top = `${y + randomOffsetY}px`;
-    
-    document.body.appendChild(ghost);
-    
     setTimeout(() => ghost.remove(), 1200);
 }
 
